@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STP Troubleshooting Simulation</title>
+    <style>
+        :root {
+            --bg: #0f172a; --panel: #1e293b; --terminal: #000000;
+            --text: #f8fafc; --green: #4ade80; --amber: #fbbf24;
+            --accent: #38bdf8; --border: #475569;
+            --font-main: 18px;
+            --font-cli: 20px;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        header { background: #020617; padding: 15px; border-bottom: 3px solid var(--accent); font-weight: bold; font-size: 22px; text-align: center; }
+
+        .main-container { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; /* 50/50 Split for Demo Visibility */
+            gap: 20px; 
+            padding: 20px; 
+            flex: 1; 
+            overflow: hidden; 
+        }
+
+        /* --- Left Column: CLI (Scrollable & Large) --- */
+        .left-col { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; 
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .cli-window {
+            flex: 1;
+            background: var(--terminal);
+            border: 3px solid var(--border);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+            overflow: hidden; /* Contains the internal scroll */
+        }
+
+        #cli-output {
+            flex: 1;
+            padding: 25px;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: var(--font-cli);
+            font-weight: bold;
+            color: var(--green);
+            overflow-y: auto; /* Makes the CLI scrollable */
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .cli-input-row {
+            display: flex;
+            background: #0a0f1e;
+            padding: 20px;
+            border-top: 3px solid var(--border);
+            align-items: center;
+        }
+
+        #cli-input { background: transparent; border: none; color: white; flex: 1; outline: none; font-family: monospace; font-size: 24px; font-weight: bold; }
+
+        /* --- Right Column: Stacked Reference Materials --- */
+        .right-col { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; 
+            height: 100%;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .topology-container {
+            background: #ffffff; 
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+            border: 4px solid var(--border);
+            min-height: 280px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .topology-container img {
+            max-height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+        }
+
+        .ticket-box { background: #020617; padding: 20px; border-left: 8px solid var(--accent); font-size: var(--font-main); border-radius: 4px; line-height: 1.6; }
+        
+        .hint-section { display: flex; flex-direction: column; gap: 10px; }
+        .hint-box { background: #0f172a; border: 2px dashed var(--accent); padding: 15px; border-radius: 8px; min-height: 60px; font-size: var(--font-main); color: #cbd5e1; }
+
+        .btn { padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 18px; transition: 0.2s; }
+        .btn-hint { background: #475569; color: white; }
+        .btn-submit { background: #22c55e; color: #020617; font-size: 20px; margin-top: 10px; }
+        .btn:hover { filter: brightness(1.2); }
+        
+        .controls-group { background: var(--panel); padding: 20px; border-radius: 12px; border: 2px solid var(--border); margin-bottom: 20px; }
+        select { width: 100%; padding: 12px; background: #020617; color: white; border: 2px solid var(--accent); border-radius: 8px; font-size: 18px; margin-top: 5px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+<header>STP Troubleshooting Simulation</header>
+
+<div class="main-container">
+    <div class="left-col">
+        <div style="display: flex; align-items: center; gap: 15px; background: var(--panel); padding: 15px; border-radius: 12px; border: 2px solid var(--border);">
+            <label style="font-size: 20px; font-weight: bold; color: var(--accent);">Active Terminal:</label>
+            <select id="target-select" onchange="switchTarget()" style="width: auto; margin: 0;">
+                <option value="SW1">SW1 (Core Switch)</option>
+                <option value="SW2">SW2 (Access Switch)</option>
+            </select>
+        </div>
+
+        <div class="cli-window">
+            <div id="cli-output">Cisco IOS Software, C2960 Software (C2960-LANBASE-M), Version 12.2
+CONSOLE CONNECTION TO SW1 ESTABLISHED.
+
+VLAN 10: Loop detected on Gi0/1 and Gi0/2. 
+High CPU utilization reported.</div>
+            <div class="cli-input-row">
+                <span id="prompt" style="color:var(--green); margin-right:12px; font-weight: bold; font-size: 24px;">SW1#</span>
+                <input type="text" id="cli-input" autofocus autocomplete="off" spellcheck="false">
+            </div>
+        </div>
+    </div>
+
+    <div class="right-col">
+        <div class="topology-container">
+            <img src="topology.png" alt="Static Topology Diagram">
+        </div>
+
+        <div class="ticket-box">
+            <strong>Ticket ID: #1092</strong><br>
+            <strong>Severity:</strong> Critical (Network Storm)<br>
+            <strong>Issue:</strong> Redundant Gigabit uplinks have caused a loop on VLAN 10. <br>
+            <strong>Task:</strong> Designate SW1 as the Root Bridge for VLAN 10.
+        </div>
+
+        <div class="hint-section">
+            <button class="btn btn-hint" onclick="showNextHint()">💡 Request Instructor Hint</button>
+            <div id="hint-display" class="hint-box">Identify the current Root Bridge by checking STP status.</div>
+        </div>
+
+        <div class="controls-group">
+            <label style="font-size: 16px; color: #94a3b8; font-weight: bold; display: block;">Which switch is the Root for VLAN 10?</label>
+            <select id="diagnosis-select">
+                <option value="">-- Select Diagnosis --</option>
+                <option value="sw1">SW1 (Core)</option>
+                <option value="sw2">SW2 (Access)</option>
+            </select>
+            <button class="btn btn-submit" onclick="submitSolution()">SUBMIT FINAL ANSWER</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentHost = "SW1";
+    let solved = false;
+    let hintIndex = 0;
+    
+    const hints = [
+        "EXAM TIP: Run 'show spanning-tree vlan 10' to see the Bridge ID vs Root ID.",
+        "ANALYSIS: SW2 currently has a lower MAC address, making it the Root by default.",
+        "FIX: Enter 'spanning-tree vlan 10 root primary' on the Core switch (SW1).",
+        "VERIFY: After the fix, run the show command again to see the 'Altn BLK' port state on SW2."
+    ];
+
+    const input = document.getElementById('cli-input');
+    const output = document.getElementById('cli-output');
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const val = input.value.trim().toLowerCase();
+            output.innerHTML += `\n${currentHost}# ${input.value}`;
+            processCLI(val);
+            input.value = '';
+            
+            // AUTOMATIC SCROLL TO BOTTOM
+            setTimeout(() => {
+                output.scrollTop = output.scrollHeight;
+            }, 10);
+        }
+    });
+
+    function processCLI(cmd) {
+        // Distractor Command: help / ?
+        if (cmd === '?' || cmd === 'help') {
+            output.innerHTML += `\nExec Commands:\n  show version           Display system hardware/software\n  show ip int brief      Display IP status of interfaces\n  show spanning-tree     Display STP statistics\n  spanning-tree vlan     Configure STP parameters\n  copy run start         Save configuration`;
+        } 
+        // Distractor Command: show version
+        else if (cmd === 'show version') {
+            output.innerHTML += `\nCisco IOS Software, C2960 Software (C2960-LANBASE-M), Version 12.2(25)SEE2\nSwitch uptime is 4 weeks, 2 days, 11 hours, 4 minutes.`;
+        }
+        // Distractor Command: show ip int brief
+        else if (cmd === 'show ip int brief') {
+            output.innerHTML += `\nInterface              IP-Address      OK? Method Status                Protocol\nGigabitEthernet0/1     unassigned      YES unset  up                    up\nGigabitEthernet0/2     unassigned      YES unset  up                    up\nFastEthernet0/1        unassigned      YES unset  up                    up`;
+        }
+        // Core Logic: Show Spanning Tree
+        else if (cmd.includes('show spanning-tree')) {
+            const isRoot = (currentHost === "SW1" && solved) || (currentHost === "SW2" && !solved);
+            output.innerHTML += `\nVLAN0010\n  Spanning tree enabled protocol ieee\n  Root ID    Priority    ${solved ? '4096' : '32768'}\n             Address     ${solved ? '000c.7777.aaaa' : '000a.2222.bbbb'}\n             ${isRoot ? 'This bridge is the root' : 'Cost 4, Port 1 (Gi0/1)'}\n\n  Bridge ID  Priority    ${(currentHost === "SW1" && solved) ? '4096' : '32768'}\n             Address     ${currentHost === "SW1" ? '000c.7777.aaaa' : '000a.2222.bbbb'}\n\nInterface           Role Sts Cost      Prio.Nbr Type\n------------------- ---- --- --------- -------- ----------------------\nGi0/1               ${isRoot ? 'Desg' : 'Root'} FWD 4         128.1    P2p\nGi0/2               ${!solved ? 'Desg FWD' : (currentHost === 'SW1' ? 'Desg FWD' : 'Altn BLK')} 4         128.2    P2p`;
+        }
+        // Core Logic: Root Primary
+        else if (cmd === 'spanning-tree vlan 10 root primary') {
+            if (currentHost === "SW1") {
+                solved = true;
+                output.innerHTML += `\n% Priority changed to 4096.\n% SW1 is now elected ROOT bridge for VLAN 10.`;
+            } else {
+                output.innerHTML += `\n% Error: Root Bridge should be assigned to the Core switch in this topology.`;
+            }
+        }
+        else { 
+            output.innerHTML += `\n% Unrecognized command. Use '?' for help.`; 
+        }
+    }
+
+    function switchTarget() {
+        currentHost = document.getElementById('target-select').value;
+        document.getElementById('prompt').innerText = `${currentHost}#`;
+        output.innerHTML += `\n\n--- TERMINAL SWITCHED TO ${currentHost} ---`;
+        output.scrollTop = output.scrollHeight;
+    }
+
+    function showNextHint() {
+        document.getElementById('hint-display').innerText = hints[hintIndex];
+        if (hintIndex < hints.length - 1) hintIndex++;
+    }
+
+    function submitSolution() {
+        const diag = document.getElementById('diagnosis-select').value;
+        if (solved && diag === "sw1") {
+            alert("SUCCESS: You have resolved the loop and optimized the path.");
+        } else {
+            alert("FAILED: The network is still unstable. Review the Spanning Tree roles.");
+        }
+    }
+</script>
+</body>
+</html>

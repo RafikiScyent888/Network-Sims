@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>N10-009: STP Troubleshooting Lab</title>
+<style>
+  :root { --terminal-bg: #1e1e1e; --terminal-text: #00ff00; --comptia-blue: #007acc; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background: #cfd8dc; color: #333; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  #header { background: #fff; border-bottom: 2px solid var(--comptia-blue); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+  .logo { font-weight: bold; color: var(--comptia-blue); font-size: 1.1em; }
+  #instructions { background: #fff; padding: 15px 25px; border-bottom: 1px solid #ccc; font-size: 14px; line-height: 1.5; }
+  #canvas { flex-grow: 1; position: relative; background: #fff; margin: 20px; border-radius: 8px; overflow: hidden; box-shadow: inset 0 0 10px rgba(0,0,0,0.1); }
+  .vlan-marker { position: absolute; top: 0; bottom: 0; width: 65px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 1.4em; text-transform: uppercase; writing-mode: vertical-rl; text-orientation: mixed; text-shadow: 1px 1px 3px rgba(0,0,0,0.3); z-index: 1; }
+  
+  #media-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+  .media-line { stroke: #90a4ae; stroke-width: 2.5; stroke-linecap: round; }
+  .trunk-line { stroke: #263238; stroke-width: 5; stroke-dasharray: 10, 5; }
+
+  .switch-box { 
+    width: 150px; height: 45px; background: #37474f; border: 2px solid #263238; 
+    border-radius: 4px; position: relative; cursor: pointer; display: flex; align-items: center; justify-content: space-around;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+  }
+  .switch-box:hover { background: #455a64; }
+  .port-leds { width: 6px; height: 6px; background: #4caf50; border-radius: 1px; box-shadow: 0 0 4px #4caf50; }
+  
+  /* Individualized Label Controls */
+  .label-top { position: absolute; top: -25px; width: 100%; text-align: center; font-weight: bold; font-size: 14px; color: #263238; }
+  .label-bottom { position: absolute; bottom: -25px; width: 100%; text-align: center; font-weight: bold; font-size: 14px; color: #263238; }
+
+  .node { position: absolute; text-align: center; z-index: 5; transform: translate(-50%, -50%); }
+  .node.interactive { cursor: pointer; }
+  .node img { width: 65px; height: auto; display: block; margin: 0 auto; }
+
+  .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); }
+  .modal-content { background: #222; width: 750px; margin: 8vh auto; border-radius: 4px; border: 1px solid #555; overflow: hidden; }
+  .modal-header { background: #444; color: #ddd; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; border-bottom: 1px solid #555; }
+  .cli-body { background: var(--terminal-bg); color: var(--terminal-text); font-family: 'Consolas', 'Courier New', monospace; padding: 15px; height: 380px; overflow-y: auto; font-size: 13px; white-space: pre-wrap; }
+  .cli-input-line { display: flex; gap: 5px; padding: 10px 15px; background: #1a1a1a; border-top: 1px solid #333; }
+  .cli-input { background: transparent; border: none; color: var(--terminal-text); font-family: inherit; font-size: inherit; outline: none; flex-grow: 1; }
+
+  #submit-bar { padding: 15px 25px; background: #fff; border-top: 1px solid #ccc; text-align: right; }
+  .btn { padding: 8px 20px; cursor: pointer; border-radius: 4px; font-weight: bold; margin-left: 10px; }
+  .btn-primary { background: var(--comptia-blue); color: white; border: none; }
+  .btn-secondary { background: #607d8b; color: white; border: none; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="logo">Network+ N10-009 Simulation</div>
+  <div id="status-chip" style="background: #ffebee; color: #c62828; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; border: 1px solid #ef9a9a;">PING STATUS: FAILED</div>
+</div>
+
+<div id="instructions">
+  <strong>SCENARIO:</strong> Hosts cannot connect to the DB server, every attempt fails. Troubleshoot the issue and make the necessary corrections to mitigate the issue.
+</div>
+
+<div id="canvas">
+  <svg id="media-layer">
+    <line class="media-line" x1="12%" y1="20%" x2="50%" y2="28%" />
+    <line class="media-line" x1="12%" y1="45%" x2="50%" y2="28%" />
+    <line class="media-line" x1="12%" y1="70%" x2="50%" y2="28%" />
+    <line class="trunk-line" x1="50%" y1="28%" x2="50%" y2="58%" />
+    <line class="media-line" x1="88%" y1="20%" x2="50%" y2="58%" />
+    <line class="media-line" x1="88%" y1="45%" x2="50%" y2="58%" />
+    <line class="media-line" x1="88%" y1="70%" x2="50%" y2="58%" />
+  </svg>
+
+  <div class="vlan-marker" style="left: 0; background: #01579b;">VLAN 10</div>
+  <div class="vlan-marker" style="right: 0; background: #b71c1c;">VLAN 20</div>
+
+  <div class="node" style="top: 20%; left: 12%; opacity: 0.6;"><img src="https://img.icons8.com/fluency/80/monitor.png"></div>
+  <div class="node interactive" style="top: 45%; left: 12%;" onclick="openPing()"><img src="https://img.icons8.com/fluency/80/monitor.png"><div style="font-size:11px; font-weight:bold;">Workstation-1</div></div>
+  <div class="node" style="top: 70%; left: 12%; opacity: 0.6;"><img src="https://img.icons8.com/fluency/80/monitor.png"></div>
+
+  <div class="node interactive" style="top: 28%; left: 50%;" onclick="openCLI('Switch A')">
+    <div class="switch-box">
+        <div class="label-top">Switch A</div>
+        <div class="port-leds"></div><div class="port-leds"></div><div class="port-leds"></div><div style="width:1px; height:20px; background:#555;"></div><div class="port-leds"></div><div class="port-leds"></div><div class="port-leds"></div>
+    </div>
+  </div>
+
+  <div class="node interactive" style="top: 58%; left: 50%;" onclick="openCLI('Switch B')">
+    <div class="switch-box">
+        <div class="label-bottom">Switch B</div>
+        <div class="port-leds"></div><div class="port-leds"></div><div class="port-leds"></div><div style="width:1px; height:20px; background:#555;"></div><div class="port-leds"></div><div class="port-leds"></div><div class="port-leds"></div>
+    </div>
+  </div>
+
+  <div class="node" style="top: 20%; left: 88%; opacity: 0.7;"><img src="https://img.icons8.com/fluency/80/server.png"></div>
+  <div class="node" style="top: 45%; left: 88%; opacity: 0.7;"><img src="https://img.icons8.com/fluency/80/database.png"><div style="font-size:11px; font-weight:bold;">DB-Server-01</div></div>
+  <div class="node" style="top: 70%; left: 88%; opacity: 0.7;"><img src="https://img.icons8.com/fluency/80/server.png"></div>
+</div>
+
+<div id="submit-bar">
+    <button class="btn btn-secondary" onclick="resetSimulation()">Reset Simulation</button>
+    <button class="btn btn-primary" onclick="gradeLab()">Submit Configuration</button>
+</div>
+
+<div id="cli-modal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header"><span id="modal-title">Device Console</span><span style="cursor:pointer;" onclick="closeModals()">&times;</span></div>
+    <div class="cli-body" id="cli-output"></div>
+    <div class="cli-input-line"><span id="cli-prompt" style="color:#00ff00;">Switch#</span><input type="text" class="cli-input" id="cli-input" autocomplete="off" spellcheck="false"></div>
+  </div>
+</div>
+
+<div id="ping-modal" class="modal">
+    <div class="modal-content" style="width: 500px; border-color: #007acc;"><div class="modal-header" style="background: #007acc;">Workstation-1 Terminal</div><div class="cli-body" id="ping-output" style="height: 350px; background: #000; color: #fff;"></div><div style="padding: 10px; background: #111; text-align: center;"><button class="btn" style="color:white; background:#444;" onclick="closeModals()">Close Terminal</button></div></div>
+</div>
+
+<script>
+  let activeDevice = '';
+  let pingInterval = null;
+  let state = { 'Switch A': { stp: [], history: "" }, 'Switch B': { stp: [], history: "" } };
+  
+  const cliInput = document.getElementById('cli-input');
+  const cliOutput = document.getElementById('cli-output');
+  const pingOutput = document.getElementById('ping-output');
+
+  function isSolved() {
+    return state['Switch A'].stp.length === 2 && state['Switch B'].stp.length === 2;
+  }
+
+  cliInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { handleCommand(cliInput.value.trim().toLowerCase()); cliInput.value = ''; } });
+
+  function handleCommand(cmd) {
+    const s = state[activeDevice];
+    s.history += `${activeDevice}# ${cmd}\n`;
+    if (cmd === 'help') s.history += "Commands:\n show vlan            - List VLAN database\n show spanning-tree   - View STP status\n spanning-tree vlan [ID] - Initialize STP instance\n";
+    else if (cmd === 'show vlan') {
+        s.history += "VLAN Name Status Ports\n---- -------------------------------- --------- -------------------------------\n1 default active Gi0/1, Gi0/2\n";
+        if (s.stp.includes('10')) s.history += "10 Workstations active Gi0/10\n";
+        if (s.stp.includes('20')) s.history += "20 Servers active Gi0/20\n";
+    } else if (cmd === 'show spanning-tree') {
+        s.history += "VLAN0001 STP active, Port Gi0/1 FWD\n";
+        s.stp.forEach(v => s.history += `VLAN00${v} STP active, Port Gi0/1 FWD\n`);
+    } else if (cmd.startsWith('spanning-tree vlan ')) {
+        const vid = cmd.split(' ').pop();
+        if (['10', '20'].includes(vid)) {
+            if (!s.stp.includes(vid)) s.stp.push(vid);
+            s.history += `STP instance for VLAN ${vid} created and initialized.\n`;
+        } else s.history += '% Error: Invalid VLAN identifier.\n';
+    } else s.history += `% Unknown command.\n`;
+    cliOutput.textContent = s.history;
+    cliOutput.scrollTop = cliOutput.scrollHeight;
+  }
+
+  function openCLI(name) { activeDevice = name; document.getElementById('modal-title').textContent = `${name} Output`; document.getElementById('cli-modal').style.display = 'block'; document.getElementById('cli-prompt').textContent = `${name}#`; cliOutput.textContent = state[name].history; cliInput.focus(); }
+
+  function openPing() {
+    document.getElementById('ping-modal').style.display = 'block';
+    if (pingInterval) clearInterval(pingInterval);
+    pingOutput.innerHTML = 'C:\\> ping 10.20.20.5 -t<br><br>';
+    
+    pingInterval = setInterval(() => {
+        if (isSolved()) {
+            pingOutput.innerHTML += 'Reply from 10.20.20.5: bytes=32 time=1ms TTL=64<br>';
+        } else {
+            pingOutput.innerHTML += 'Request timed out.<br>';
+        }
+        pingOutput.scrollTop = pingOutput.scrollHeight;
+    }, 1000);
+  }
+
+  function closeModals() { 
+    document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); 
+    if (pingInterval) { clearInterval(pingInterval); pingInterval = null; }
+  }
+
+  function resetSimulation() {
+    state = { 'Switch A': { stp: [], history: "" }, 'Switch B': { stp: [], history: "" } };
+    document.getElementById('status-chip').textContent = 'PING STATUS: FAILED';
+    document.getElementById('status-chip').style.cssText = "background: #ffebee; color: #c62828; border: 1px solid #ef9a9a;";
+    alert("Simulation reset. All switch configurations have been cleared.");
+  }
+
+  function gradeLab() {
+    if (isSolved()) { 
+        document.getElementById('status-chip').textContent = 'STATUS: CONNECTED'; 
+        document.getElementById('status-chip').style.cssText = "background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7;"; 
+        alert("SUCCESS: Mitigation complete. Switch A and Switch B are correctly forwarding VLAN 10 and 20 traffic."); 
+    }
+    else alert("FAILED: Ping is still failing. Ensure both VLAN 10 and 20 are initialized on BOTH Switch A and Switch B.");
+  }
+</script>
+</body>
+</html>

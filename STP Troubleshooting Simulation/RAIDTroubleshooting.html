@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>RAID Troubleshooting Challenge</title>
+
+<style>
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #eef2f5;
+  padding: 20px;
+  text-align: center;
+}
+
+h2 { color: #2a4d69; }
+.instructions { margin-bottom: 20px; }
+
+#layout-container {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+#spare-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 220px;
+  justify-content: center;
+}
+
+.drive {
+  width: 160px;
+  background: linear-gradient(to bottom, #d8dadc, #a9abad);
+  border: 2px solid #888;
+  border-radius: 4px;
+  padding: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  position: relative;
+}
+
+.drive span {
+  display: block;
+}
+
+.failed-drive {
+  border: 3px solid red !important;
+  background: #ffd6d6;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  color: red;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+#server-container {
+  position: relative;
+  width: 600px;
+  height: 600px;
+  background: #2a4d69;
+  border-radius: 12px;
+}
+
+.bay {
+  position: absolute;
+  width: 170px;
+  height: 60px;
+  border: 3px dashed #ff9800;
+  background: rgba(255,193,7,0.25);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bay.empty::after {
+  content: "Drop Drive Here";
+  font-size: 11px;
+}
+
+.replaced {
+  background-color: #7cc77c !important;
+  border: 2px solid #2e7d32 !important;
+}
+
+button {
+  padding: 8px 16px;
+  margin: 5px;
+  background-color: #1a73e8;
+  border: none;
+  border-radius: 5px;
+  color: white;
+  cursor: pointer;
+}
+
+#feedback {
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+#dialog, #overlay {
+  display: none;
+}
+
+#overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.4);
+  z-index: 998;
+}
+
+#dialog {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  z-index: 999;
+  max-width: 400px;
+  white-space: pre-wrap;
+}
+</style>
+</head>
+
+<body>
+
+<h2>RAID Troubleshooting Challenge</h2>
+<div class="instructions">
+Click each drive to review logs. Remove failed drives and replace with matching spare.
+</div>
+
+<div id="feedback"></div>
+
+<div id="layout-container">
+  <div id="spare-wrapper"></div>
+  <div id="server-container"></div>
+</div>
+
+<div>
+  <button onclick="init()">Next Issue</button>
+  <button onclick="submitChallenge()">Submit</button>
+</div>
+
+<div id="overlay" onclick="closeDialog()"></div>
+<div id="dialog">
+  <h3>Drive Report</h3>
+  <div id="logContent"></div>
+  <br>
+  <button onclick="closeDialog()">Close</button>
+</div>
+
+<script>
+const speeds = ["400MB/s", "520MB/s", "550MB/s", "600MB/s"];
+const sizes = [1, 2, 4];
+const types = ["HDD", "SSD", "NVMe"];
+let failedDrives = [];
+
+function init() {
+  document.getElementById("feedback").textContent = "";
+  document.getElementById("server-container").innerHTML = "";
+  document.getElementById("spare-wrapper").innerHTML = "";
+  failedDrives = [];
+
+  const bayCount = 6;
+
+  for (let i = 1; i <= bayCount; i++) {
+    const cap = sizes[Math.floor(Math.random() * sizes.length)];
+    const spd = speeds[Math.floor(Math.random() * speeds.length)];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const isFailed = Math.random() < 0.35;
+
+    const bay = document.createElement("div");
+    bay.className = "bay";
+    bay.id = "bay" + i;
+    bay.style.top = (80 + Math.floor((i - 1) / 2) * 100) + "px";
+    bay.style.left = (i % 2 === 1 ? 120 : 330) + "px";
+
+    const drive = document.createElement("div");
+    drive.className = "drive";
+    drive.dataset.capacity = cap;
+    drive.dataset.speed = spd;
+    drive.dataset.type = type;
+    drive.dataset.failed = isFailed;
+
+    drive.innerHTML = `
+      <span>Drive ${i}</span>
+      <span>${cap}TB</span>
+      <span>${spd}</span>
+      <span>${type}</span>
+    `;
+
+    if (isFailed) {
+      drive.classList.add("failed-drive");
+      failedDrives.push({ cap, spd, type, bayId: bay.id });
+
+      const removeBtn = document.createElement("div");
+      removeBtn.className = "remove-btn";
+      removeBtn.innerText = "✖";
+      removeBtn.onclick = (e) => {
+        e.stopPropagation();
+        bay.innerHTML = "";
+        bay.classList.add("empty");
+      };
+      drive.appendChild(removeBtn);
+    }
+
+    drive.onclick = () => showLog(drive);
+
+    bay.appendChild(drive);
+    bay.ondragover = e => e.preventDefault();
+    bay.ondrop = function(e) {
+      e.preventDefault();
+      if (!bay.classList.contains("empty")) return;
+      const id = e.dataTransfer.getData("text");
+      const spare = document.getElementById(id);
+      bay.appendChild(spare);
+      bay.classList.remove("empty");
+      bay.classList.add("replaced");
+    };
+
+    document.getElementById("server-container").appendChild(bay);
+  }
+
+  document.querySelectorAll(".bay").forEach(b => {
+    if (!b.firstChild) b.classList.add("empty");
+  });
+
+  generateSpares();
+}
+
+function generateSpares() {
+  const wrapper = document.getElementById("spare-wrapper");
+  let sparePool = [];
+
+  failedDrives.forEach((fd, index) => {
+    sparePool.push({
+      cap: fd.cap,
+      spd: fd.spd,
+      type: fd.type,
+      id: "match" + index
+    });
+  });
+
+  while (sparePool.length < 8) {
+    sparePool.push({
+      cap: sizes[Math.floor(Math.random() * sizes.length)],
+      spd: speeds[Math.floor(Math.random() * speeds.length)],
+      type: types[Math.floor(Math.random() * types.length)],
+      id: "random" + sparePool.length
+    });
+  }
+
+  for (let i = sparePool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [sparePool[i], sparePool[j]] = [sparePool[j], sparePool[i]];
+  }
+
+  sparePool.forEach(sp => {
+    const spare = createSpare(sp.cap, sp.spd, sp.type, sp.id);
+    wrapper.appendChild(spare);
+  });
+}
+
+function createSpare(cap, spd, type, idSuffix) {
+  const spare = document.createElement("div");
+  spare.className = "drive";
+  spare.id = "spare_" + idSuffix;
+  spare.draggable = true;
+  spare.dataset.capacity = cap;
+  spare.dataset.speed = spd;
+  spare.dataset.type = type;
+  spare.innerHTML = `
+    <span>Spare</span>
+    <span>${cap}TB</span>
+    <span>${spd}</span>
+    <span>${type}</span>
+  `;
+  spare.ondragstart = e => e.dataTransfer.setData("text", spare.id);
+  return spare;
+}
+
+function showLog(drive) {
+  const status = drive.dataset.failed === "true"
+    ? "STATUS: FAILED\nSMART Errors Detected\nDrive Offline"
+    : "STATUS: HEALTHY\nOperating Normally";
+
+  document.getElementById("logContent").innerText =
+`Capacity: ${drive.dataset.capacity}TB
+Speed: ${drive.dataset.speed}
+Type: ${drive.dataset.type}
+
+${status}`;
+
+  document.getElementById("overlay").style.display = "block";
+  document.getElementById("dialog").style.display = "block";
+}
+
+function closeDialog() {
+  document.getElementById("overlay").style.display = "none";
+  document.getElementById("dialog").style.display = "none";
+}
+
+function submitChallenge() {
+  let success = true;
+
+  failedDrives.forEach(fd => {
+    const bay = document.getElementById(fd.bayId);
+    if (!bay.firstChild ||
+        bay.firstChild.dataset.capacity != fd.cap ||
+        bay.firstChild.dataset.speed != fd.spd ||
+        bay.firstChild.dataset.type != fd.type) {
+      success = false;
+    }
+  });
+
+  document.getElementById("feedback").innerText =
+    success
+      ? "✅ Correct! All failed drives properly replaced."
+      : "❌ Incorrect replacement detected.";
+}
+
+window.onload = init;
+</script>
+
+</body>
+</html>

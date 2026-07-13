@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Routing Table Troubleshooting Simulation</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#0f1b33;
+      --panel2:#101e3a;
+      --text:#e6edf7;
+      --muted:#a9b7d0;
+      --line:#24365c;
+      --accent:#5aa9ff;
+      --good:#2ecc71;
+      --bad:#ff5a70;
+      --warn:#f7b955;
+      --chip:#13254a;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 14px;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 700px at 20% 0%, #122752 0%, var(--bg) 55%);
+      color:var(--text);
+    }
+
+    .wrap{
+      max-width:1100px;
+      margin: 0 auto;
+      padding: 22px 18px 60px;
+    }
+
+    header{
+      display:flex;
+      gap:16px;
+      align-items:flex-start;
+      justify-content:space-between;
+      margin-bottom:14px;
+    }
+
+    .title-block{
+      flex:1;
+      min-width: 260px;
+    }
+
+    h1{
+      margin:0 0 6px;
+      font-size: 18px;
+      letter-spacing:.2px;
+    }
+
+    .sub{
+      margin:0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height:1.35;
+      max-width: 850px;
+    }
+
+    .mode{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap:8px;
+      min-width: 220px;
+    }
+
+    .mode-row{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px;
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .mode-label{
+      font-size: 12px;
+      color: var(--muted);
+      margin-right: 6px;
+      white-space:nowrap;
+    }
+
+    .toggle{
+      display:flex;
+      gap:8px;
+    }
+
+    .btn{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor:pointer;
+      font-size: 12.5px;
+      transition: .15s ease;
+      user-select:none;
+    }
+    .btn:hover{ transform: translateY(-1px); border-color: rgba(90,169,255,.35); }
+    .btn:active{ transform: translateY(0px); }
+
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(90,169,255,.35), rgba(90,169,255,.12));
+      border-color: rgba(90,169,255,.5);
+    }
+
+    .btn.ghost{
+      background: transparent;
+      border-color: rgba(255,255,255,.10);
+      color: var(--muted);
+    }
+
+    .btn.danger{
+      background: linear-gradient(180deg, rgba(255,90,112,.35), rgba(255,90,112,.12));
+      border-color: rgba(255,90,112,.5);
+    }
+
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: rgba(19,37,74,.75);
+      border:1px solid rgba(255,255,255,.08);
+      color: var(--muted);
+      white-space:nowrap;
+    }
+    .chip b{ color: var(--text); font-weight:600; }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    @media (max-width: 940px){
+      .grid{ grid-template-columns: 1fr; }
+      .mode{ align-items:stretch; }
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .card-h{
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .card-h .h{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .card-h .h strong{
+      font-size: 13px;
+      letter-spacing:.2px;
+    }
+    .card-h .h span{
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .card-b{
+      padding: 14px;
+    }
+
+    .helper{
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(90,169,255,.10);
+      border: 1px solid rgba(90,169,255,.25);
+      color: var(--text);
+      font-size: 12.5px;
+      line-height:1.35;
+      margin-bottom: 12px;
+    }
+    .helper .k{
+      display:inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(90,169,255,.15);
+      border:1px solid rgba(90,169,255,.28);
+      color: var(--text);
+      font-size: 11px;
+      margin-right: 8px;
+      transform: translateY(-1px);
+    }
+
+    .prompt{
+      padding: 12px 12px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(255,255,255,.08);
+      color: var(--text);
+      font-size: 12.5px;
+      line-height:1.35;
+      margin-bottom: 12px;
+    }
+    .prompt b{ font-weight:650; }
+
+    .topology{
+      display:flex;
+      justify-content:center;
+      padding: 6px 0 10px;
+    }
+    svg{
+      max-width: 100%;
+      height: auto;
+    }
+    .svg-box{
+      fill: rgba(15,27,51,.85);
+      stroke: rgba(255,255,255,.16);
+      stroke-width: 1.2;
+    }
+    .svg-link{
+      stroke: rgba(90,169,255,.65);
+      stroke-width: 2.2;
+    }
+    .svg-text{
+      fill: #e6edf7;
+      font-size: 14px;
+      font-weight: 650;
+    }
+    .svg-sub{
+      fill: #a9b7d0;
+      font-size: 12.5px;
+      font-weight: 500;
+    }
+
+    table{
+      width:100%;
+      border-collapse: collapse;
+      overflow:hidden;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.08);
+    }
+    thead th{
+      text-align:left;
+      padding:10px 10px;
+      font-size: 12px;
+      color: var(--muted);
+      background: rgba(255,255,255,.03);
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    tbody td{
+      padding:10px 10px;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      color: var(--text);
+    }
+    tbody tr{
+      cursor:pointer;
+      transition:.12s ease;
+      background: rgba(10,20,40,.18);
+    }
+    tbody tr:hover{
+      background: rgba(90,169,255,.08);
+    }
+    tbody tr.selected{
+      outline: 2px solid rgba(90,169,255,.65);
+      background: rgba(90,169,255,.12);
+    }
+    tbody tr.locked{
+      cursor: default;
+      opacity: .88;
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:12px;
+      align-items:center;
+    }
+
+    .note{
+      color: var(--muted);
+      font-size: 12px;
+      margin-left:auto;
+    }
+
+    .panel{
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+      padding: 12px;
+      line-height:1.4;
+    }
+
+    .result{
+      display:none;
+      margin-top: 12px;
+      border-radius: 12px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.10);
+    }
+    .result.show{ display:block; }
+
+    .result-h{
+      padding: 10px 12px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.03);
+    }
+
+    .badge{
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--warn);
+      box-shadow: 0 0 0 3px rgba(247,185,85,.15);
+      flex: 0 0 auto;
+    }
+    .badge.good{
+      background: var(--good);
+      box-shadow: 0 0 0 3px rgba(46,204,113,.15);
+    }
+    .badge.bad{
+      background: var(--bad);
+      box-shadow: 0 0 0 3px rgba(255,90,112,.15);
+    }
+
+    .result-h strong{
+      font-size: 13px;
+    }
+    .result-b{
+      padding: 12px;
+      background: rgba(10,20,40,.20);
+    }
+
+    .result-b h3{
+      margin: 0 0 6px;
+      font-size: 13px;
+    }
+    .result-b p{
+      margin: 0 0 10px;
+      color: var(--text);
+      font-size: 12.8px;
+    }
+    .result-b ul{
+      margin: 0 0 10px 18px;
+      padding:0;
+      color: var(--text);
+      font-size: 12.8px;
+    }
+    .result-b li{ margin: 6px 0; }
+    .muted{
+      color: var(--muted);
+    }
+
+    .small{
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .kbd{
+      display:inline-block;
+      padding: 1px 8px;
+      border-radius: 8px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      transform: translateY(-1px);
+    }
+
+    .footer-line{
+      margin-top: 10px;
+      border-top: 1px solid rgba(255,255,255,.08);
+      padding-top: 10px;
+    }
+
+/* Safety net: hide practice-only panel by default (Exam Mode) */
+#practiceOnlyPanel {
+  display: none;
+}
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title-block">
+        <h1>Routing Table Troubleshooting</h1>
+        <p class="sub">
+          This simulation trains routing-table interpretation: determine why traffic cannot reach a remote network by identifying a misdirected static route.
+          No command entry is required—routing information is provided for review.
+        </p>
+      </div>
+
+      <div class="mode">
+        <div class="mode-row" role="group" aria-label="Mode toggle">
+          <span class="mode-label">Mode:</span>
+          <div class="toggle">
+            <button id="practiceBtn" class="btn" type="button">Practice</button>
+            <button id="examBtn" class="btn" type="button">Exam</button>
+          </div>
+        </div>
+        <div class="chip" id="modeChip"><b>Practice Mode</b> <span>Hints enabled</span></div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: Task + Routing Table -->
+      <section class="card">
+        <div class="card-h">
+          <div class="h">
+            <strong>Scenario</strong>
+            <span>Select the routing entry that is causing the failure.</span>
+          </div>
+          <span class="chip"><b>Target:</b> 10.0.4.0/24</span>
+        </div>
+
+        <div class="card-b">
+          <div class="prompt">
+            A network administrator is troubleshooting connectivity between networks.
+            Devices on <b>10.0.1.0/24</b> cannot communicate with devices on <b>10.0.4.0/24</b>.
+            Routing information for <b>Router B</b> is shown.
+            <br/><br/>
+            <b>Task:</b> Identify the routing entry that prevents traffic from reaching <b>10.0.4.0/24</b>.
+          </div>
+
+          <!-- Practice helper (visible only in practice mode) -->
+          <div class="helper" id="helperBox">
+            <span class="k">Practice Tip</span>
+            Start by finding the <b>destination network</b> (10.0.4.0/24). Then verify the selected
+            <b>interface leads toward that network</b> based on the topology.
+          </div>
+
+          <div class="topology" aria-label="Topology diagram">
+            <!-- Simple, fully-drawn topology (no external images) -->
+            <svg viewBox="0 0 820 170" role="img" aria-label="Router A to Router B to Router C topology">
+              <!-- Links -->
+              <line x1="220" y1="85" x2="360" y2="85" class="svg-link"/>
+              <line x1="460" y1="85" x2="600" y2="85" class="svg-link"/>
+
+              <!-- Router A -->
+              <rect x="80" y="45" rx="14" ry="14" width="170" height="80" class="svg-box"/>
+              <text x="165" y="75" text-anchor="middle" class="svg-text">Router A</text>
+              <text x="165" y="98" text-anchor="middle" class="svg-sub">10.0.1.0/24</text>
+
+              <!-- Router B -->
+              <rect x="330" y="45" rx="14" ry="14" width="170" height="80" class="svg-box"/>
+              <text x="415" y="75" text-anchor="middle" class="svg-text">Router B</text>
+              <text x="415" y="98" text-anchor="middle" class="svg-sub">G0 ↔ A | G1 ↔ C</text>
+
+              <!-- Router C -->
+              <rect x="580" y="45" rx="14" ry="14" width="170" height="80" class="svg-box"/>
+              <text x="665" y="75" text-anchor="middle" class="svg-text">Router C</text>
+              <text x="665" y="98" text-anchor="middle" class="svg-sub">10.0.4.0/24</text>
+
+              <!-- Link labels -->
+              <text x="290" y="70" text-anchor="middle" class="svg-sub">G0</text>
+              <text x="540" y="70" text-anchor="middle" class="svg-sub">G1</text>
+            </svg>
+          </div>
+
+          <div class="panel">
+            <div class="small muted" style="margin-bottom:10px;">
+              Routing information (Router B)
+              <span class="muted">— select the entry that breaks reachability.</span>
+            </div>
+
+            <table aria-label="Routing information table">
+              <thead>
+                <tr>
+                  <th style="width:44%;">Destination Network</th>
+                  <th style="width:18%;">Interface</th>
+                  <th style="width:22%;">Route Source</th>
+                  <th style="width:16%;">Notes</th>
+                </tr>
+              </thead>
+              <tbody id="routeTbody">
+                <!-- Rows are injected by JS for easy reuse/versioning -->
+              </tbody>
+            </table>
+
+            <div class="actions">
+              <button id="submitBtn" class="btn primary" type="button">Submit</button>
+              <button id="resetBtn" class="btn ghost" type="button">Reset</button>
+              <span class="note" id="statusNote">Select one routing entry, then submit.</span>
+            </div>
+
+            <div class="result" id="resultBox" aria-live="polite">
+              <div class="result-h">
+                <span class="badge" id="resultBadge"></span>
+                <strong id="resultTitle">Result</strong>
+                <span class="muted" id="resultSubtitle"></span>
+              </div>
+              <div class="result-b" id="resultBody"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: Quick Reference / Approach -->
+      <aside class="card" id="practiceOnlyPanel">
+        <div class="card-h">
+          <div class="h">
+            <strong>How to Approach Routing Table Questions</strong>
+            <span>Keep it simple: destination → direction → decision.</span>
+          </div>
+        </div>
+        <div class="card-b">
+          <div class="panel">
+            <p style="margin:0 0 10px;">
+              Use this 3-step method:
+            </p>
+            <ul>
+              <li><b>Destination first:</b> Identify the network you must reach (e.g., <span class="kbd">10.0.4.0/24</span>).</li>
+              <li><b>Direction check:</b> Confirm which interface leads toward that network using the topology.</li>
+              <li><b>Route match:</b> Find the routing entry that would be used and verify it points the right way.</li>
+            </ul>
+
+            <div class="footer-line">
+              <p class="small" style="margin:0;">
+                <b>What this trains:</b> interpreting routing information to diagnose why traffic is misdirected.
+                <br/>
+                <b>What this does not require:</b> typing commands or memorizing vendor-specific syntax.
+              </p>
+            </div>
+          </div>
+
+          <div style="height:12px;"></div>
+
+          <div class="panel">
+            <p style="margin:0 0 8px;"><b>Mode behavior</b></p>
+            <ul class="small" style="margin:0 0 0 18px;">
+              <li><b>Practice:</b> shows a helper tip and allows retries.</li>
+              <li><b>Exam:</b> hides the helper tip and locks after submission.</li>
+              <li><b>Both:</b> provide full explanations after submission.</li>
+            </ul>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    /***********************
+     * DATA (easy to version)
+     ***********************/
+    const ROUTES = [
+      { id:"r1", dest:"10.0.2.0/24", iface:"G0", source:"Connected", notes:"Local segment" },
+      { id:"r2", dest:"10.0.3.0/24", iface:"G1", source:"Connected", notes:"Local segment" },
+      { id:"r3", dest:"10.0.1.0/24", iface:"G0", source:"Static",    notes:"To Router A" },
+      // The intentionally misconfigured entry (exam-scope: wrong direction)
+      { id:"r4", dest:"10.0.4.0/24", iface:"G0", source:"Static",    notes:"To Router C" }
+    ];
+
+    // Correct selection is the misconfigured route entry
+    const CORRECT_ROUTE_ID = "r4";
+
+    /***********************
+     * STATE
+     ***********************/
+    const STATE = {
+      mode: "exam",      
+      selectedRouteId: null,
+      submitted: false
+    };
+
+    /***********************
+     * ELEMENTS
+     ***********************/
+    const practiceBtn = document.getElementById("practiceBtn");
+    const examBtn = document.getElementById("examBtn");
+    const modeChip = document.getElementById("modeChip");
+    const helperBox = document.getElementById("helperBox");
+
+    const routeTbody = document.getElementById("routeTbody");
+    const submitBtn = document.getElementById("submitBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const statusNote = document.getElementById("statusNote");
+
+    const resultBox = document.getElementById("resultBox");
+    const resultBadge = document.getElementById("resultBadge");
+    const resultTitle = document.getElementById("resultTitle");
+    const resultSubtitle = document.getElementById("resultSubtitle");
+    const resultBody = document.getElementById("resultBody");
+
+    /***********************
+     * INIT
+     ***********************/
+    function loadMode(){
+      const saved = localStorage.getItem("routingSimMode");
+      if(saved === "practice" || saved === "exam"){
+        STATE.mode = saved;
+      } else {
+        STATE.mode = "exam";
+      }
+    }
+
+    function saveMode(){
+      localStorage.setItem("routingSimMode", STATE.mode);
+    }
+
+    function setMode(mode){
+      STATE.mode = mode;
+      saveMode();
+      applyModeUI();
+      hardReset(false); // keep mode, reset attempt
+    }
+
+    function applyModeUI(){
+  	const isPractice = STATE.mode === "practice";
+  	const practicePanel = document.getElementById("practiceOnlyPanel");
+
+  	// Mode buttons
+  	practiceBtn.classList.toggle("primary", isPractice);
+  	examBtn.classList.toggle("primary", !isPractice);
+
+  	// Helper prompt
+  	helperBox.style.display = isPractice ? "block" : "none";
+
+  	// Right column (Practice only)
+  	if (isPractice) {
+    		practicePanel.style.display = "block";
+  	} else {
+    		practicePanel.style.display = "none";
+  	}
+
+  	// Mode chip
+  	modeChip.innerHTML = isPractice
+    		? "<b>Practice Mode</b> <span>Hints enabled</span>"
+    		: "<b>Exam Mode</b> <span>Hints hidden</span>";
+
+      // Submit button label nuance
+      submitBtn.textContent = isPractice ? "Submit" : "Submit (locks attempt)";
+    }
+
+    function renderRoutes(){
+      routeTbody.innerHTML = "";
+      ROUTES.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.dataset.routeId = r.id;
+
+        tr.innerHTML = `
+          <td><span style="font-weight:650;">${r.dest}</span></td>
+          <td>${r.iface}</td>
+          <td>${r.source}</td>
+          <td class="muted">${r.notes}</td>
+        `;
+
+        tr.addEventListener("click", () => onSelectRoute(r.id));
+        routeTbody.appendChild(tr);
+      });
+    }
+
+    function onSelectRoute(routeId){
+      if(STATE.submitted && STATE.mode === "exam") return; // locked
+
+      STATE.selectedRouteId = routeId;
+      // Update selection styling
+      [...routeTbody.querySelectorAll("tr")].forEach(tr => {
+        tr.classList.toggle("selected", tr.dataset.routeId === routeId);
+      });
+
+      statusNote.textContent = "Selection made. Click Submit to check your answer.";
+    }
+
+    function setSubmittedLockUI(){
+      const lock = STATE.submitted && STATE.mode === "exam";
+      [...routeTbody.querySelectorAll("tr")].forEach(tr => tr.classList.toggle("locked", lock));
+      submitBtn.disabled = lock;
+      submitBtn.classList.toggle("ghost", lock);
+      if(lock){
+        statusNote.textContent = "Exam Mode: attempt locked. Switch to Practice or Reset to start over.";
+      }
+    }
+
+    /***********************
+     * GRADING + EXPLANATION
+     ***********************/
+    function submit(){
+      if(STATE.submitted && STATE.mode === "exam") return;
+
+      if(!STATE.selectedRouteId){
+        statusNote.textContent = "Select one routing entry before submitting.";
+        flash(statusNote);
+        return;
+      }
+
+      STATE.submitted = true;
+
+      const correct = STATE.selectedRouteId === CORRECT_ROUTE_ID;
+      showResults(correct);
+
+      setSubmittedLockUI();
+    }
+
+    function showResults(isCorrect){
+      // Badge + title
+      resultBox.classList.add("show");
+      resultBadge.classList.remove("good","bad");
+      resultBadge.classList.add(isCorrect ? "good" : "bad");
+
+      resultTitle.textContent = isCorrect ? "Correct" : "Incorrect";
+      resultSubtitle.textContent = isCorrect
+        ? "You identified the misdirected static route."
+        : "Review the destination network and the direction of the interface.";
+
+      // Build explanation (always full, both modes)
+      const selected = ROUTES.find(r => r.id === STATE.selectedRouteId);
+      const correctRoute = ROUTES.find(r => r.id === CORRECT_ROUTE_ID);
+
+      const whyText = `
+        <h3>Why this causes the problem</h3>
+        <p>
+          Router B forwards traffic for <b>10.0.4.0/24</b> using the matching route entry.
+          In the routing information shown, the <b>10.0.4.0/24</b> static route points out interface <b>G0</b>.
+          Based on the topology, <b>G0 leads toward Router A</b>, while <b>G1 leads toward Router C</b> (where <b>10.0.4.0/24</b> exists).
+        </p>
+        <p>
+          Because traffic is sent out the <b>wrong interface</b>, it cannot reach the destination network.
+          This is a classic “wrong direction” static route issue.
+        </p>
+      `;
+
+      const howToText = `
+        <h3>How to solve similar questions</h3>
+        <ul>
+          <li><b>Find the destination network first:</b> <span class="kbd">10.0.4.0/24</span>.</li>
+          <li><b>Use the topology to determine direction:</b> Router C is reached via <b>G1</b>.</li>
+          <li><b>Check the matching route entry:</b> confirm it forwards toward the correct interface.</li>
+        </ul>
+      `;
+
+      const correctAnswerText = `
+        <h3>Correct answer</h3>
+        <p>
+          The misconfiguration is the static route entry for <b>${correctRoute.dest}</b> pointing to
+          interface <b>${correctRoute.iface}</b> (it should forward toward <b>G1</b> based on the topology).
+        </p>
+      `;
+
+      let selectedText = `
+        <h3>Your selection</h3>
+        <p>
+          You selected: <b>${selected.dest}</b> via <b>${selected.iface}</b> (${selected.source}).
+        </p>
+      `;
+
+      // Practice-only: add a small reflection nudge (not a hint before submit)
+      const practiceReflection = (STATE.mode === "practice")
+        ? `
+          <div class="footer-line">
+            <p class="small">
+              <b>Practice reflection:</b> Before looking at interfaces, always anchor on the destination network.
+              Then ask: “Which direction should traffic go from Router B to reach that network?”
+            </p>
+          </div>
+        `
+        : `
+          <div class="footer-line">
+            <p class="small">
+              <b>Exam behavior:</b> In timed assessments, routing info is often provided and you’re expected to interpret it quickly.
+              Focus on destination → direction → decision.
+            </p>
+          </div>
+        `;
+
+      // If incorrect, add a short, non-advanced corrective cue
+      const correctionCue = (!isCorrect)
+        ? `
+          <h3>What to adjust next time</h3>
+          <ul>
+            <li>Re-check which interface on Router B leads to Router C (the network <b>10.0.4.0/24</b> is behind Router C).</li>
+            <li>Then confirm the <b>10.0.4.0/24</b> route forwards out that interface.</li>
+          </ul>
+        `
+        : "";
+
+      resultBody.innerHTML = `
+        ${selectedText}
+        ${correctAnswerText}
+        ${whyText}
+        ${correctionCue}
+        ${howToText}
+        ${practiceReflection}
+      `;
+
+      // Visual feedback: mark correct row after submit (both modes)
+      highlightRowsAfterSubmit();
+    }
+
+    function highlightRowsAfterSubmit(){
+      [...routeTbody.querySelectorAll("tr")].forEach(tr => {
+        const id = tr.dataset.routeId;
+        // Add subtle outline to correct row after submit
+        if(id === CORRECT_ROUTE_ID){
+          tr.style.outline = "2px solid rgba(46,204,113,.55)";
+          tr.style.background = "rgba(46,204,113,.10)";
+        }
+      });
+    }
+
+    /***********************
+     * RESET
+     ***********************/
+    function hardReset(showNote = true){
+      STATE.selectedRouteId = null;
+      STATE.submitted = false;
+
+      // Clear row styles
+      [...routeTbody.querySelectorAll("tr")].forEach(tr => {
+        tr.classList.remove("selected","locked");
+        tr.style.outline = "";
+        tr.style.background = "";
+      });
+
+      // Hide results
+      resultBox.classList.remove("show");
+      resultBody.innerHTML = "";
+      resultTitle.textContent = "Result";
+      resultSubtitle.textContent = "";
+
+      // Restore submit
+      submitBtn.disabled = false;
+      submitBtn.classList.remove("ghost");
+
+      statusNote.textContent = showNote
+        ? "Select one routing entry, then submit."
+        : statusNote.textContent;
+
+      if(showNote) flash(statusNote, 140);
+    }
+
+    /***********************
+     * UTIL
+     ***********************/
+    function flash(el, ms=220){
+      const prev = el.style.filter;
+      el.style.filter = "brightness(1.25)";
+      setTimeout(() => el.style.filter = prev, ms);
+    }
+
+    /***********************
+     * WIRE UP EVENTS
+     ***********************/
+    practiceBtn.addEventListener("click", () => setMode("practice"));
+    examBtn.addEventListener("click", () => setMode("exam"));
+    submitBtn.addEventListener("click", submit);
+    resetBtn.addEventListener("click", () => hardReset(true));
+
+    /***********************
+     * BOOT
+     ***********************/
+    loadMode();
+    renderRoutes();
+    applyModeUI();
+    hardReset(false);
+  </script>
+</body>
+</html>

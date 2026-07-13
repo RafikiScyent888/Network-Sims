@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CompTIA Network+ Dynamic VLSM Subnetting Lab</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background-color: #f4f6f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            position: relative;
+        }
+        .container {
+            max-width: 950px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 10;
+        }
+        .header-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #1a365d;
+            margin: 0;
+            font-size: 24px;
+        }
+        .scenario-counter {
+            background-color: #2b6cb0;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        h2 {
+            color: #2b6cb0;
+            margin-top: 25px;
+            font-size: 18px;
+        }
+        .scenario-box {
+            background-color: #ebf8ff;
+            border-left: 4px solid #3182ce;
+            padding: 18px;
+            margin-bottom: 25px;
+            border-radius: 0 4px 4px 0;
+        }
+        .scenario-box p {
+            margin: 0 0 10px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            margin-bottom: 25px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        th {
+            background-color: #f7fafc;
+            color: #4a5568;
+            font-weight: 600;
+        }
+        input[type="text"] {
+            width: 220px;
+            padding: 8px 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        select {
+            padding: 8px 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        .btn-primary {
+            background-color: #3182ce;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #2b6cb0;
+        }
+        .btn-secondary {
+            background-color: #4a5568;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #2d3748;
+        }
+        .btn-success {
+            background-color: #38a169;
+            color: white;
+        }
+        .btn-success:hover {
+            background-color: #2f855a;
+        }
+        .result {
+            margin-top: 20px;
+            font-weight: bold;
+            font-size: 18px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .result-success {
+            background-color: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+            display: block;
+        }
+        .result-error {
+            background-color: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #feb2b2;
+            display: block;
+        }
+        .correct { border: 2px solid #48bb78 !important; background-color: #f0fff4; }
+        .incorrect { border: 2px solid #f56565 !important; background-color: #fff5f5; }
+
+        /* Modal Popup Styling */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 650px;
+            width: 90%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            border-top: 6px solid #dd6b20;
+        }
+        .modal-header {
+            font-size: 20px;
+            font-weight: bold;
+            color: #dd6b20;
+            margin-bottom: 15px;
+        }
+        .modal-body {
+            font-size: 15px;
+            color: #2d3748;
+            margin-bottom: 25px;
+        }
+        .modal-body blockquote {
+            background-color: #f7fafc;
+            border-left: 4px solid #cbd5e0;
+            margin: 15px 0;
+            padding: 10px 15px;
+            font-family: monospace;
+        }
+
+        /* Confetti Canvas Container */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 999;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+
+<div class="container">
+    <div class="header-area">
+        <h1>CompTIA Network+ Lab: Multi-Scenario VLSM Subnetting</h1>
+        <div class="scenario-counter" id="scenarioLabel">Scenario 1 of 4</div>
+    </div>
+    
+    <div class="scenario-box">
+        <h3>Scenario for the Network Administrator:</h3>
+        <p id="scenarioDescription"></p>
+        <p><strong>Your Goal:</strong> Minimize address waste using Variable Length Subnet Masking (VLSM). Sort allocations from the largest host requirement down to the smallest, then bundle remaining addresses into valid, mathematically legal consolidated CIDR blocks.</p>
+    </div>
+
+    <h2>1. Subnetting Schedule</h2>
+    <p><em>Instructions: Determine the correct subnet order (largest to smallest), enter each Network Address, and choose the perfect CIDR mask.</em></p>
+    
+    <table id="subnetTable">
+        <thead>
+            <tr>
+                <th>Subnet Segment</th>
+                <th>Requirement Target</th>
+                <th>Network Address</th>
+                <th>CIDR Mask</th>
+            </tr>
+        </thead>
+        <tbody id="subnetTableBody">
+            </tbody>
+    </table>
+
+    <h2>2. Remaining Address Space Consolidation</h2>
+    <p>Calculate the next available boundary blocks and optimize all remaining free address ranges into summarized block definitions (Order of entry does not matter).</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th>Network Address</th>
+                <th>CIDR Mask</th>
+            </tr>
+        </thead>
+        <tbody id="consolidationTableBody">
+            </tbody>
+    </table>
+
+    <div id="resultMessage" class="result"></div>
+
+    <div class="btn-group">
+        <button class="btn btn-primary" id="submitBtn" onclick="checkAnswers()">Submit & Check Answers</button>
+        <button class="btn btn-secondary" id="nextBtn" onclick="nextScenario()" style="display: none;">Advance to Next Scenario &rsaquo;</button>
+        <button class="btn btn-success" id="doneBtn" onclick="startConfetti庆祝()" style="display: none;">🎉 Complete Lab & Celebrate!</button>
+    </div>
+</div>
+
+<div id="examModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">⚠️ CompTIA Exam Strategy Insight</div>
+        <div class="modal-body" id="modalText">
+            </div>
+        <button class="btn btn-primary" onclick="closeModal()">Got it, Close Note</button>
+    </div>
+</div>
+
+<script>
+    const scenarios = [
+        {
+            baseNetwork: "172.24.5.0/24",
+            description: "You have been allocated a single base network block of <strong>172.24.5.0/24</strong>. The branch framework contains 4 distinct Local Area Networks (LANs) and 4 critical Point-to-Point Wide Area Network (WAN) links connecting them.",
+            segments: [
+                { name: "LAN 1", type: "LAN", req: "64 Hosts" },
+                { name: "LAN 2", type: "LAN", req: "24 Hosts" },
+                { name: "LAN 3", type: "LAN", req: "16 Hosts" },
+                { name: "LAN 4", type: "LAN", req: "8 Hosts" },
+                { name: "WAN Link: LAN 1 to LAN 2", type: "WAN", req: "2 Hosts" },
+                { name: "WAN Link: LAN 2 to LAN 3", type: "WAN", req: "2 Hosts" },
+                { name: "WAN Link: LAN 2 to LAN 4", type: "WAN", req: "2 Hosts" },
+                { name: "WAN Link: LAN 1 to LAN 4", type: "WAN", req: "2 Hosts" }
+            ],
+            consolidationRows: 1,
+            scheduleAnswers: {
+                "lan_1_net": "172.24.5.0",    "lan_1_cidr": "/25",
+                "lan_2_net": "172.24.5.128",  "lan_2_cidr": "/27",
+                "lan_3_net": "172.24.5.160",  "lan_3_cidr": "/27",
+                "lan_4_net": "172.24.5.192",  "lan_4_cidr": "/28",
+                "wan_1_net": "172.24.5.208",  "wan_1_cidr": "/30",
+                "wan_2_net": "172.24.5.212",  "wan_2_cidr": "/30",
+                "wan_3_net": "172.24.5.216",  "wan_3_cidr": "/30",
+                "wan_4_net": "172.24.5.220",  "wan_4_cidr": "/30"
+            },
+            consolidationAnswers: [
+                { net: "172.24.5.224", cidr: "/27" }
+            ],
+            examTip: "In this scenario, your leftover space naturally forms a clean 32-block boundary starting exactly at .224. On the actual Network+ exam, a Performance-Based Question (PBQ) will usually only ask for this single remaining block setup: <strong>172.24.5.224/27</strong>."
+        },
+        {
+            baseNetwork: "192.168.42.0/24",
+            description: "A newly acquired logistics center requires an isolated architecture map. You are given the base subnet block of <strong>192.168.42.0/24</strong>. The blueprint spans 3 individual departments alongside 2 critical edge transit point connections. Map out every single leftover block cleanly to finish the pool.",
+            segments: [
+                { name: "Warehouse Office LAN", type: "LAN", req: "120 Hosts" },
+                { name: "Inventory Scanners LAN", type: "LAN", req: "30 Hosts" },
+                { name: "Shipping Dock LAN", type: "LAN", req: "14 Hosts" },
+                { name: "Primary Edge WAN Link", type: "WAN", req: "2 Hosts" },
+                { name: "Secondary Backup WAN Link", type: "WAN", req: "2 Hosts" }
+            ],
+            consolidationRows: 2,
+            scheduleAnswers: {
+                "lan_1_net": "192.168.42.0",   "lan_1_cidr": "/25",
+                "lan_2_net": "192.168.42.128", "lan_2_cidr": "/27",
+                "lan_3_net": "192.168.42.160", "lan_3_cidr": "/28",
+                "wan_1_net": "192.168.42.176", "wan_1_cidr": "/30",
+                "wan_2_net": "192.168.42.180", "wan_2_cidr": "/30"
+            },
+            consolidationAnswers: [
+                { net: "192.168.42.184", cidr: "/29" },
+                { net: "192.168.42.192", cidr: "/26" }
+            ],
+            examTip: "<strong>Watch Out on the Exam!</strong> Here you used two rows to grab every single leftover IP up to .255. However, CompTIA exam questions usually only give you <em>one input box</em> for unused space. If you see that, they only want the <strong>very first available legal block</strong>. For this layout, you would enter only: <br><blockquote>Network: 192.168.42.184<br>Mask: /29</blockquote> You would totally ignore the remaining space after .191 unless extra rows are provided!"
+        },
+        {
+            baseNetwork: "10.11.20.0/24",
+            description: "An offshore R&D laboratory requires a highly structured topological design. Your root IP block is <strong>10.11.20.0/24</strong>. The project contains 3 production floors requiring massive node allocations coupled together by 3 structural WAN gateways.",
+            segments: [
+                { name: "Floor 1 Engineering LAN", type: "LAN", req: "50 Hosts" },
+                { name: "Floor 2 Server Farm LAN", type: "LAN", req: "45 Hosts" },
+                { name: "Floor 3 Administration LAN", type: "LAN", req: "26 Hosts" },
+                { name: "Core WAN Link Alpha", type: "WAN", req: "2 Hosts" },
+                { name: "Core WAN Link Beta", type: "WAN", req: "2 Hosts" },
+                { name: "Core WAN Link Gamma", type: "WAN", req: "2 Hosts" }
+            ],
+            consolidationRows: 3,
+            scheduleAnswers: {
+                "lan_1_net": "10.11.20.0",    "lan_1_cidr": "/26",
+                "lan_2_net": "10.11.20.64",   "lan_2_cidr": "/26",
+                "lan_3_net": "10.11.20.128",  "lan_3_cidr": "/27",
+                "wan_1_net": "10.11.20.160",  "wan_1_cidr": "/30",
+                "wan_2_net": "10.11.20.164",  "wan_2_cidr": "/30",
+                "wan_3_net": "10.11.20.168",  "wan_3_cidr": "/30"
+            },
+            consolidationAnswers: [
+                { net: "10.11.20.172", cidr: "/30" },
+                { net: "10.11.20.176", cidr: "/28" },
+                { net: "10.11.20.192", cidr: "/26" }
+            ],
+            examTip: "Because our remaining space started at .172 (which is only divisible by 4), we had to step up using a /30, then a /28, before finally using a large /26. If a CompTIA PBQ asks for the 'next available consolidated range' in a single box here, the correct answer is strictly <strong>10.11.20.172/30</strong>. Do not try to stretch a /26 starting at .172!"
+        },
+        {
+            baseNetwork: "172.30.115.0/24",
+            description: "A retail store layout is undergoing modernization. You must structure their designated <strong>172.30.115.0/24</strong> network scope. The property features 2 large transaction clusters, 2 smaller peripheral rings, and 1 direct uplink connecting straight to headquarters.",
+            segments: [
+                { name: "Point-of-Sale (POS) LAN", type: "LAN", req: "60 Hosts" },
+                { name: "Guest Wi-Fi LAN", type: "LAN", req: "60 Hosts" },
+                { name: "Back-Office Admin LAN", type: "LAN", req: "10 Hosts" },
+                { name: "Security Camera LAN", type: "LAN", req: "10 Hosts" },
+                { name: "HQ Data Center WAN Link", type: "WAN", req: "2 Hosts" }
+            ],
+            consolidationRows: 4,
+            scheduleAnswers: {
+                "lan_1_net": "172.30.115.0",   "lan_1_cidr": "/26",
+                "lan_2_net": "172.30.115.64",  "lan_2_cidr": "/26",
+                "lan_3_net": "172.30.115.128", "lan_3_cidr": "/28",
+                "lan_4_net": "172.30.115.144", "lan_4_cidr": "/28",
+                "wan_1_net": "172.30.115.160", "wan_1_cidr": "/30"
+            },
+            consolidationAnswers: [
+                { net: "172.30.115.164", cidr: "/30" },
+                { net: "172.30.115.168", cidr: "/29" },
+                { net: "172.30.115.176", cidr: "/28" },
+                { net: "172.30.115.192", cidr: "/26" }
+            ],
+            examTip: "This is a classic master-level engineering slice! Because your space leaves off on .164, a single-box exam requirement would want exclusively the first step block: <strong>172.30.115.164/30</strong>. Knowing how to step up boundaries like this ensures you can handle any complex subnetting layout CompTIA throws at you!"
+        }
+    ];
+
+    let currentScenarioIndex = 0;
+
+    function populateCidrDropdown(selectElement) {
+        selectElement.innerHTML = "";
+        let defaultOpt = document.createElement('option');
+        defaultOpt.text = "--Select--";
+        defaultOpt.value = "";
+        selectElement.add(defaultOpt);
+        for(let i = 24; i <= 32; i++) {
+            let opt = document.createElement('option');
+            opt.value = "/" + i;
+            opt.text = "/" + i;
+            selectElement.add(opt);
+        }
+    }
+
+    function loadScenario(index) {
+        const scenario = scenarios[index];
+        
+        document.getElementById("scenarioLabel").innerText = `Scenario ${index + 1} of ${scenarios.length}`;
+        document.getElementById("scenarioDescription").innerHTML = scenario.description;
+        
+        const resultDiv = document.getElementById('resultMessage');
+        resultDiv.className = "result";
+        resultDiv.innerHTML = "";
+        document.getElementById("nextBtn").style.display = "none";
+        document.getElementById("doneBtn").style.display = "none";
+        
+        // Build Consolidation Space dynamic rows
+        const consolidationTbody = document.getElementById("consolidationTableBody");
+        consolidationTbody.innerHTML = "";
+        for(let r = 1; r <= scenario.consolidationRows; r++) {
+            const cRow = document.createElement("tr");
+            cRow.innerHTML = `
+                <td><strong>Consolidated Unused Space Block ${r}</strong></td>
+                <td><input type="text" class="user-cons-net" data-row="${r}" placeholder="Type Network Address Here"></td>
+                <td><select class="user-cons-cidr" data-row="${r}"></select></td>
+            `;
+            consolidationTbody.appendChild(cRow);
+            populateCidrDropdown(cRow.querySelector("select"));
+        }
+
+        // Build main schedule workspace
+        const tbody = document.getElementById("subnetTableBody");
+        tbody.innerHTML = "";
+
+        let lanIndex = 1;
+        let wanIndex = 1;
+
+        scenario.segments.forEach((seg) => {
+            const row = document.createElement("tr");
+            let uniqueIdPrefix = (seg.type === "LAN") ? `lan_${lanIndex++}` : `wan_${wanIndex++}`;
+
+            row.innerHTML = `
+                <td><strong>${seg.name}</strong></td>
+                <td>${seg.req}</td>
+                <td><input type="text" id="${uniqueIdPrefix}_net" placeholder="Type Network Address Here"></td>
+                <td><select id="${uniqueIdPrefix}_cidr"></select></td>
+            `;
+            tbody.appendChild(row);
+            populateCidrDropdown(row.querySelector("select"));
+        });
+    }
+
+    function checkAnswers() {
+        const scenario = scenarios[currentScenarioIndex];
+        let errors = 0;
+
+        // 1. Grade Main Schedule
+        const schedKeys = scenario.scheduleAnswers;
+        for (let id in schedKeys) {
+            let el = document.getElementById(id);
+            if (!el) continue;
+            
+            if (el.value.trim() === schedKeys[id]) {
+                el.classList.remove('incorrect');
+                el.classList.add('correct');
+            } else {
+                el.classList.remove('correct');
+                el.classList.add('incorrect');
+                errors++;
+            }
+        }
+
+        // 2. Grade Consolidation Blocks (Order-Independent)
+        const userNetInputs = document.querySelectorAll('.user-cons-net');
+        const userCidrSelects = document.querySelectorAll('.user-cons-cidr');
+        
+        let userEntries = [];
+        userNetInputs.forEach((input, idx) => {
+            userEntries.push({
+                net: input.value.trim(),
+                cidr: userCidrSelects[idx].value,
+                netEl: input,
+                cidrEl: userCidrSelects[idx]
+            });
+        });
+
+        let remainingAnswers = [...scenario.consolidationAnswers];
+
+        userEntries.forEach(entry => {
+            entry.netEl.classList.add('incorrect');
+            entry.cidrEl.classList.add('incorrect');
+        });
+
+        userEntries.forEach(entry => {
+            let matchIndex = remainingAnswers.findIndex(ans => ans.net === entry.net && ans.cidr === entry.cidr);
+            if (matchIndex !== -1) {
+                entry.netEl.classList.remove('incorrect');
+                entry.netEl.classList.add('correct');
+                entry.cidrEl.classList.remove('incorrect');
+                entry.cidrEl.classList.add('correct');
+                remainingAnswers.splice(matchIndex, 1);
+            } else {
+                errors++;
+            }
+        });
+
+        // 3. Final Evaluation
+        let resultDiv = document.getElementById('resultMessage');
+        if (errors === 0) {
+            resultDiv.className = "result result-success";
+            resultDiv.innerHTML = "Perfect! 🎉 All blocks line up flawlessly. Review the Exam Insight Note that just popped up!";
+            
+            document.getElementById("modalText").innerHTML = scenario.examTip;
+            document.getElementById("examModal").style.display = "flex";
+
+            if (currentScenarioIndex < scenarios.length - 1) {
+                document.getElementById("nextBtn").style.display = "inline-block";
+            } else {
+                resultDiv.innerHTML += "<br><strong>Fantastic work! You have completely mastered all multi-scenario modules! Click the button below to finish!</strong>";
+                document.getElementById("doneBtn").style.display = "inline-block";
+            }
+        } else {
+            resultDiv.className = "result result-error";
+            resultDiv.innerHTML = `Verification Failed. Check your network addresses and boundaries. Remember, for the consolidation area, the order you list them does not matter as long as the combinations are mathematically correct!`;
+        }
+        resultDiv.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function closeModal() {
+        document.getElementById("examModal").style.display = "none";
+    }
+
+    function nextScenario() {
+        if (currentScenarioIndex < scenarios.length - 1) {
+            currentScenarioIndex++;
+            loadScenario(currentScenarioIndex);
+        }
+    }
+
+    // --- Native Canvas Confetti Engine ---
+    let canvas = document.getElementById('confetti-canvas');
+    let ctx = canvas.getContext('2d');
+    let confetti = [];
+    let confettiColors = ['#f56565', '#ed8936', '#ecc94b', '#48bb78', '#38b2ac', '#4299e1', '#9f7aea', '#ed64a6'];
+    let animationId = null;
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+
+    function startConfetti庆祝() {
+        canvas.style.display = "block";
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Spawn particles
+        for (let i = 0; i < 150; i++) {
+            confetti.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height - canvas.height,
+                r: Math.random() * 6 + 4,
+                d: Math.random() * canvas.height,
+                color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
+                tilt: Math.random() * 10 - 5,
+                tiltAngleIncremental: Math.random() * 0.07 + 0.02,
+                tiltAngle: 0
+            });
+        }
+        drawConfettiFrame();
+    }
+
+    function drawConfettiFrame() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        confetti.forEach((p, idx) => {
+            p.tiltAngle += p.tiltAngleIncremental;
+            p.y += (Math.cos(p.d) + 3 + p.r / 2) / 2;
+            p.x += Math.sin(p.tiltAngle);
+            p.tilt = Math.sin(p.tiltAngle - idx / 3) * 15;
+
+            ctx.beginPath();
+            ctx.lineWidth = p.r;
+            ctx.strokeStyle = p.color;
+            ctx.moveTo(p.x + p.tilt + p.r / 2, p.y);
+            ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 2);
+            ctx.stroke();
+
+            // Loop particles back to top if they fall off screen
+            if (p.y > canvas.height) {
+                confetti[idx] = {
+                    x: Math.random() * canvas.width,
+                    y: -20,
+                    r: p.r,
+                    d: p.d,
+                    color: p.color,
+                    tilt: p.tilt,
+                    tiltAngleIncremental: p.tiltAngleIncremental,
+                    tiltAngle: p.tiltAngle
+                };
+            }
+        });
+        
+        animationId = requestAnimationFrame(drawConfettiFrame);
+    }
+
+    window.onload = function() {
+        loadScenario(0);
+    };
+</script>
+
+</body>
+</html>

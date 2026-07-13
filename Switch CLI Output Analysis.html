@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Switch CLI Output Analysis</title>
+<style>
+  body{
+    background:#0b1220;
+    color:#e5e7eb;
+    font-family: monospace;
+    padding:20px;
+  }
+  .container{max-width:1050px;margin:auto;}
+  h2{margin:0 0 10px 0;}
+  .panel{
+    background:#020617;
+    border:1px solid #334155;
+    padding:14px;
+    margin-bottom:14px;
+  }
+  .row{display:flex;gap:14px;flex-wrap:wrap;}
+  .col{flex:1;min-width:260px;}
+  label{display:block;margin:8px 0 6px 0;}
+  select,input,button{
+    width:100%;
+    background:#020617;
+    color:#e5e7eb;
+    border:1px solid #334155;
+    padding:10px;
+    font-family: monospace;
+    font-size: 14px;
+  }
+  button{cursor:pointer;}
+  .terminal{
+    height:320px;
+    overflow:auto;
+    white-space:pre;
+    line-height:1.35;
+  }
+  .muted{color:#94a3b8;}
+  .feedback{
+    margin-top:12px;
+    padding:10px;
+    border:1px solid #334155;
+    background:#0b1220;
+  }
+  .ok{border-color:#16a34a;}
+  .bad{border-color:#dc2626;}
+  .hint{
+    margin-top:10px;
+    color:#cbd5e1;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>Switch CLI Output Analysis</h2>
+
+  <div class="panel">
+    <div class="row">
+      <div class="col">
+        <strong>Scenario</strong>
+        <div id="scenarioText" style="margin-top:10px;"></div>
+
+        <label for="scenarioSelect">Change scenario:</label>
+        <select id="scenarioSelect">
+          <option value="0">Scenario 1</option>
+          <option value="1">Scenario 2</option>
+          <option value="2">Scenario 3</option>
+          <option value="3">Scenario 4</option>
+        </select>
+
+        <div class="hint">
+          <span class="muted">CLI tip:</span> Type <b>help</b> to see available commands. Then use any/all <b>show</b> commands to gather evidence.
+        </div>
+      </div>
+
+      <div class="col">
+        <strong>Decision</strong>
+
+        <div id="questionText" style="margin-top:10px;"></div>
+
+        <label for="answerSelect">Choose the most likely cause:</label>
+        <select id="answerSelect">
+          <!-- populated per scenario -->
+        </select>
+
+        <button id="submitBtn" style="margin-top:10px;">Submit Answer</button>
+
+        <div id="feedback" class="feedback" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel terminal" id="terminal" aria-label="CLI terminal"></div>
+  <input id="commandInput" placeholder="Enter command and press Enter" autocomplete="off" spellcheck="false"/>
+
+</div>
+
+<script>
+/**
+ * Design goals implemented:
+ * - Terminal starts blank (no commands until help)
+ * - User can run all three show commands in any order
+ * - Decision visible immediately; dropdown starts blank; no preselection of correct
+ * - Each scenario includes anchor identifiers (interface + dept/VLAN if relevant)
+ * - Outputs include multiple interfaces and realistic-ish noise
+ */
+
+const AVAILABLE_COMMANDS_TEXT =
+`Available commands:
+- show vlan
+- show interfaces
+- show mac address-table`;
+
+const scenarios = [
+  // Scenario 1: VLAN exists but no ports assigned (confirm via show vlan)
+  {
+    scenarioText:
+`Users in the Accounting department (VLAN 30) cannot access network resources.
+Anchor: Accounting is VLAN 30. Workstations are connected to access ports on this switch.
+Use CLI output to confirm what is wrong.`,
+    question: "What is the MOST likely cause?",
+    // Provide outputs for all 3 commands (one decisive, others neutral/decoy)
+    outputs: {
+      "show vlan":
+`VLAN  Name         Status    Ports
+1     default      active    Fa0/1, Fa0/2
+10    Sales        active    Fa0/3, Fa0/4
+20    HR           active    Fa0/5
+30    Accounting   active`,
+      "show interfaces":
+`FastEthernet0/1 is up, line protocol is up
+  Description: Lobby Printer
+  VLAN: 1
+
+FastEthernet0/3 is up, line protocol is up
+  Description: Sales Workstation
+  VLAN: 10
+
+FastEthernet0/5 is up, line protocol is up
+  Description: HR Workstation
+  VLAN: 20
+
+FastEthernet0/7 is up, line protocol is up
+  Description: Conference Room
+  VLAN: 1`,
+      "show mac address-table":
+`Vlan    Mac Address       Type      Ports
+1       00aa.11bb.22cc    dynamic   Fa0/1
+10      00d1.22e3.33f4    dynamic   Fa0/3
+10      00d1.22e3.44a5    dynamic   Fa0/4
+20      00c9.88b7.77a1    dynamic   Fa0/5`
+    },
+    answers: [
+      {
+        text: "Accounting VLAN has no assigned switch ports",
+        correct: true,
+        why:
+"show vlan confirms VLAN 30 (Accounting) exists but has no ports listed under Ports. If no access ports are members of VLAN 30, Accounting devices won’t be placed into that VLAN."
+      },
+      {
+        text: "The switch port is administratively down",
+        correct: false,
+        why:
+"An administratively down condition would be confirmed with show interfaces showing 'administratively down' for the anchored port. This scenario’s issue is visible in show vlan."
+      },
+      {
+        text: "The MAC address table is full",
+        correct: false,
+        why:
+"A full MAC table would typically show many entries or symptoms of flooding/unknown unicast. Nothing in the MAC table output suggests exhaustion."
+      },
+      {
+        text: "Duplex mismatch is preventing connectivity",
+        correct: false,
+        why:
+"Duplex mismatches usually cause performance issues (errors/late collisions), not a whole department being unable to connect—especially when the VLAN has no assigned ports."
+      }
+    ]
+  },
+
+  // Scenario 2: Interface administratively down (confirm via show interfaces)
+  {
+    scenarioText:
+`A workstation connected to FastEthernet0/6 cannot access the network.
+Anchor: The device is plugged into Fa0/6. Other devices on the same VLAN are working normally.`,
+    question: "What is the MOST likely cause?",
+    outputs: {
+      "show interfaces":
+`FastEthernet0/5 is up, line protocol is up
+  Description: HR Workstation
+  VLAN: 20
+
+FastEthernet0/6 is administratively down, line protocol is down
+  Description: Accounting Workstation
+  VLAN: 30
+
+FastEthernet0/7 is up, line protocol is up
+  Description: Accounting Workstation
+  VLAN: 30
+
+FastEthernet0/9 is up, line protocol is up
+  Description: Sales Workstation
+  VLAN: 10`,
+      "show vlan":
+`VLAN  Name         Status    Ports
+1     default      active    Fa0/1, Fa0/2
+10    Sales        active    Fa0/9
+20    HR           active    Fa0/5
+30    Accounting   active    Fa0/6, Fa0/7`,
+      "show mac address-table":
+`Vlan    Mac Address       Type      Ports
+10      00d1.22e3.33f4    dynamic   Fa0/9
+20      00c9.88b7.77a1    dynamic   Fa0/5
+30      0011.2233.4455    dynamic   Fa0/7`
+    },
+    answers: [
+      {
+        text: "The interface has been disabled by configuration",
+        correct: true,
+        why:
+"show interfaces for Fa0/6 shows 'administratively down', which means the port was manually shut down/disabled. That’s a configuration state, not a physical link issue."
+      },
+      {
+        text: "The workstation is assigned to the wrong VLAN",
+        correct: false,
+        why:
+"Wrong VLAN assignment would show the port is up but in the incorrect VLAN. Here, the anchored port is administratively down."
+      },
+      {
+        text: "The switch has not learned the MAC address on that port",
+        correct: false,
+        why:
+"The MAC table can be empty for a down interface, but the primary confirmed issue is the explicit 'administratively down' status on Fa0/6."
+      },
+      {
+        text: "The VLAN is missing from the switch",
+        correct: false,
+        why:
+"show vlan confirms VLAN 30 exists and has ports assigned. The problem is the administrative state of the anchored interface."
+      }
+    ]
+  },
+
+  // Scenario 3: Port is up but assigned to wrong VLAN (confirm via show interfaces)
+  {
+    scenarioText:
+`A user moved desks and is now connected to FastEthernet0/9.
+Anchor: The user is in Accounting (VLAN 30). The device is plugged into Fa0/9.`,
+    question: "What is the MOST likely cause?",
+    outputs: {
+      "show interfaces":
+`FastEthernet0/5 is up, line protocol is up
+  Description: HR Workstation
+  VLAN: 20
+
+FastEthernet0/6 is up, line protocol is up
+  Description: Sales Workstation
+  VLAN: 10
+
+FastEthernet0/9 is up, line protocol is up
+  Description: Accounting Workstation
+  VLAN: 10
+
+FastEthernet0/10 is up, line protocol is up
+  Description: Accounting Workstation
+  VLAN: 30`,
+      "show vlan":
+`VLAN  Name         Status    Ports
+1     default      active    Fa0/1, Fa0/2
+10    Sales        active    Fa0/6, Fa0/9
+20    HR           active    Fa0/5
+30    Accounting   active    Fa0/10`,
+      "show mac address-table":
+`Vlan    Mac Address       Type      Ports
+10      00d1.22e3.33f4    dynamic   Fa0/6
+10      00a1.b2c3.d4e5    dynamic   Fa0/9
+20      00c9.88b7.77a1    dynamic   Fa0/5
+30      00ff.ee11.2233    dynamic   Fa0/10`
+    },
+    answers: [
+      {
+        text: "The workstation is assigned to the wrong VLAN",
+        correct: true,
+        why:
+"The scenario anchor says Accounting should be VLAN 30. show interfaces shows the anchored port Fa0/9 is up but assigned to VLAN 10. That mismatch explains the lack of connectivity."
+      },
+      {
+        text: "The interface is administratively down",
+        correct: false,
+        why:
+"show interfaces shows Fa0/9 is up, line protocol is up. That rules out an administratively down port."
+      },
+      {
+        text: "The MAC address table is full",
+        correct: false,
+        why:
+"The MAC table shows normal learning behavior and a small number of entries—no evidence of overflow."
+      },
+      {
+        text: "Accounting VLAN does not exist",
+        correct: false,
+        why:
+"show vlan confirms VLAN 30 exists and has at least one port assigned (Fa0/10). The issue is assignment on Fa0/9."
+      }
+    ]
+  },
+
+  // Scenario 4: Port is up but switch hasn't learned MAC on that port (confirm via show mac address-table)
+  {
+    scenarioText:
+`A workstation connected to FastEthernet0/8 is powered on but cannot access the network.
+Anchor: The device is plugged into Fa0/8 and the link light is on (port is up).`,
+    question: "What is the MOST likely cause (based on the CLI evidence)?",
+    outputs: {
+      "show interfaces":
+`FastEthernet0/7 is up, line protocol is up
+  Description: Sales Workstation
+  VLAN: 10
+
+FastEthernet0/8 is up, line protocol is up
+  Description: Accounting Workstation
+  VLAN: 30
+
+FastEthernet0/9 is up, line protocol is up
+  Description: HR Workstation
+  VLAN: 20`,
+      "show vlan":
+`VLAN  Name         Status    Ports
+10    Sales        active    Fa0/7
+20    HR           active    Fa0/9
+30    Accounting   active    Fa0/8`,
+      "show mac address-table":
+`Vlan    Mac Address       Type      Ports
+10      00d1.22e3.33f4    dynamic   Fa0/7
+20      00c9.88b7.77a1    dynamic   Fa0/9`
+    },
+    answers: [
+      {
+        text: "The switch has not learned the workstation MAC address on Fa0/8",
+        correct: true,
+        why:
+"Fa0/8 is up in show interfaces, but show mac address-table has no entry learned on Fa0/8. That strongly suggests no frames are being received from the device (or the device isn’t transmitting/negotiating correctly), even though the link is up."
+      },
+      {
+        text: "Accounting VLAN has no assigned ports",
+        correct: false,
+        why:
+"show vlan shows VLAN 30 (Accounting) is active and includes Fa0/8. So the VLAN membership exists."
+      },
+      {
+        text: "The interface is administratively down",
+        correct: false,
+        why:
+"show interfaces shows Fa0/8 is up, line protocol is up—so it is not administratively down."
+      },
+      {
+        text: "The workstation is assigned to the wrong VLAN",
+        correct: false,
+        why:
+"show interfaces shows Fa0/8 is in VLAN 30, which matches the scenario anchor (Accounting VLAN 30). The evidence points to MAC learning/traffic absence instead."
+      }
+    ]
+  }
+];
+
+let current = 0;
+
+// DOM helpers
+const terminalEl = document.getElementById("terminal");
+const scenarioTextEl = document.getElementById("scenarioText");
+const scenarioSelectEl = document.getElementById("scenarioSelect");
+const questionTextEl = document.getElementById("questionText");
+const answerSelectEl = document.getElementById("answerSelect");
+const feedbackEl = document.getElementById("feedback");
+const submitBtn = document.getElementById("submitBtn");
+const cmdInput = document.getElementById("commandInput");
+
+function clearFeedback(){
+  feedbackEl.style.display = "none";
+  feedbackEl.classList.remove("ok","bad");
+  feedbackEl.textContent = "";
+}
+
+function appendToTerminal(text){
+  terminalEl.textContent += text;
+  terminalEl.scrollTop = terminalEl.scrollHeight;
+}
+
+function setTerminalBlank(){
+  terminalEl.textContent = "";
+}
+
+function loadScenario(idx){
+  current = Number(idx);
+  scenarioTextEl.textContent = scenarios[current].scenarioText;
+  questionTextEl.textContent = scenarios[current].question;
+
+  // Build answer dropdown with blank first option
+  answerSelectEl.innerHTML = "";
+  const blank = document.createElement("option");
+  blank.value = "";
+  blank.textContent = "Select an answer...";
+  blank.selected = true;
+  blank.disabled = true;
+  answerSelectEl.appendChild(blank);
+
+  scenarios[current].answers.forEach((a, i) => {
+    const opt = document.createElement("option");
+    opt.value = String(i);
+    opt.textContent = a.text;
+    answerSelectEl.appendChild(opt);
+  });
+
+  // Reset terminal + input + feedback
+  setTerminalBlank();
+  cmdInput.value = "";
+  clearFeedback();
+}
+
+function normalizeCommand(cmd){
+  return cmd.trim().toLowerCase().replace(/\s+/g," ");
+}
+
+function runCommand(raw){
+  const cmd = normalizeCommand(raw);
+  if(!cmd) return;
+
+  appendToTerminal(`> ${raw.trim()}\n`);
+
+  if(cmd === "help"){
+    appendToTerminal(AVAILABLE_COMMANDS_TEXT + "\n");
+    return;
+  }
+
+  const outputs = scenarios[current].outputs;
+
+  // Allow all three show commands always; if scenario doesn't include,
+  // return a neutral "no output available" style message rather than invalid.
+  if(cmd === "show vlan" || cmd === "show interfaces" || cmd === "show mac address-table"){
+    if(outputs[cmd]){
+      appendToTerminal(outputs[cmd] + "\n");
+    } else {
+      appendToTerminal("(no additional output)\n");
+    }
+    return;
+  }
+
+  appendToTerminal("Invalid command. Type 'help' for available commands.\n");
+}
+
+function submitAnswer(){
+  clearFeedback();
+  const selected = answerSelectEl.value;
+
+  if(selected === ""){
+    feedbackEl.style.display = "block";
+    feedbackEl.classList.add("bad");
+    feedbackEl.textContent = "Select an answer before submitting.";
+    return;
+  }
+
+  const ans = scenarios[current].answers[Number(selected)];
+  feedbackEl.style.display = "block";
+
+  if(ans.correct){
+    feedbackEl.classList.add("ok");
+    feedbackEl.textContent = "Correct. " + ans.why;
+  } else {
+    feedbackEl.classList.add("bad");
+    // Include their chosen reasoning and gently point to evidence-based thinking
+    // without giving a step-by-step “do this then this” sequence.
+    const correctText = scenarios[current].answers.find(a => a.correct).text;
+    feedbackEl.textContent =
+      "Incorrect. " + ans.why + " Evidence-based takeaway: match the scenario anchor (interface/VLAN) to the specific line(s) in the show output. Correct answer: " + correctText + ".";
+  }
+}
+
+// Events
+scenarioSelectEl.addEventListener("change", (e) => loadScenario(e.target.value));
+
+cmdInput.addEventListener("keydown", (e) => {
+  if(e.key === "Enter"){
+    runCommand(cmdInput.value);
+    cmdInput.value = "";
+  }
+});
+
+submitBtn.addEventListener("click", submitAnswer);
+
+// Init
+loadScenario(0);
+</script>
+</body>
+</html>

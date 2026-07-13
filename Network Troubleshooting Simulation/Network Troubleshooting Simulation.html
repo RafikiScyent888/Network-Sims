@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Network Troubleshooting Simulation</title>
+  <style>
+    html, body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background-color: #007BFF;
+      color: white;
+      padding: 10px;
+      text-align: center;
+      font-size: 20px;
+    }
+    #container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    #sidebar {
+      width: 300px;
+      background: #f1f1f1;
+      padding: 20px;
+      overflow-y: auto;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    }
+    #sidebar.hidden {
+      width: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    #main {
+      flex-grow: 1;
+      position: relative;
+      background-color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .image-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 1200px;
+    }
+    #network-img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .device {
+      position: absolute;
+      width: 8%;
+      height: 12%;
+      cursor: pointer;
+    }
+    .dialog {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 15px;
+      z-index: 100;
+      box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+      width: 400px;
+      cursor: move;
+    }
+    .dialog img {
+      width: 100%;
+      height: auto;
+      margin-bottom: 10px;
+    }
+    .dropdown-container {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .dialog select {
+      flex: 1;
+      padding: 6px;
+    }
+    .dialog select:disabled {
+      background-color: #eee;
+    }
+    .button-bar {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.9);
+      padding: 10px 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      display: flex;
+      gap: 10px;
+      z-index: 50;
+    }
+    #toggleSidebar {
+      position: absolute;
+      left: 10px;
+      top: 10px;
+      z-index: 20;
+    }
+    #resultsDialog {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 20px;
+      z-index: 200;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+      width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    #resultsDialog h2 {
+      margin-top: 0;
+    }
+  </style>
+</head>
+<body>
+<header>Network Troubleshooting Simulation</header>
+<div id="container">
+  <div id="sidebar">
+    <h3>Instructions</h3>
+    <p>A network technician needs to resolve some issues with a customer's SOHO network. The customer reports that some of the PCs are not connecting to the network, while others appear to be working as intended. All devices should be set for VLAN 10.</p>
+    <p><strong>INSTRUCTIONS</strong></p>
+    <p>Troubleshoot all the network components. Click on each device to diagnose them. Identify any components with a problem and recommend a solution to correct each problem. Click close on each device when finished.</p>
+    <p>If at any time you'd like to reset the simulation, click the Reset All button.</p>
+    <p>Click submit once every device has been viewed and diagnosed.</p>
+  </div>
+  <div id="main">
+    <button id="toggleSidebar" onclick="toggleSidebar()">Toggle Instructions</button>
+    <div class="image-wrapper">
+      <img id="network-img" src="Device_Layout.png" alt="Network Layout">
+      <!-- Device hotspots -->
+      <div class="device" style="top: 34%; left: 33.5%;" onclick="openDialog('switch1')"></div>
+      <div class="device" style="top: 34%; left: 76%;" onclick="openDialog('switch2')"></div>
+      <div class="device" style="top: 34%; left: 3.5%;" onclick="openDialog('server')"></div>
+      <div class="device" style="top: 5%; left: 28.5%;" onclick="openDialog('pc1')"></div>
+      <div class="device" style="top: 5%; left: 62%;" onclick="openDialog('pc2')"></div>
+      <div class="device" style="top: 5%; left: 90%;" onclick="openDialog('pc3')"></div>
+      <div class="device" style="top: 65%; left: 22%;" onclick="openDialog('pc4')"></div>
+      <div class="device" style="top: 65%; left: 48.5%;" onclick="openDialog('pc5')"></div>
+      <div class="device" style="top: 65%; left: 76%;" onclick="openDialog('pc6')"></div>
+
+      <!-- Dialogs -->
+      <!-- Example -->
+      <div id="resultsDialog">
+        <h2>Results</h2>
+        <div id="scoreText"></div>
+        <div id="incorrectDetails"></div>
+        <button onclick="document.getElementById('resultsDialog').style.display='none'">Close</button>
+      </div>
+
+      <!-- Dialog template for all 9 devices -->
+      <script>
+        const devices = [
+          { id: 'switch1', label: 'Switch 1', img: 'Switch1.png' },
+          { id: 'switch2', label: 'Switch 2', img: 'Switch2.png' },
+          { id: 'server', label: 'Server', img: 'Server.png' },
+          { id: 'pc1', label: 'PC1', img: 'PC1.png' },
+          { id: 'pc2', label: 'PC2', img: 'PC2.png' },
+          { id: 'pc3', label: 'PC3', img: 'PC3.png' },
+          { id: 'pc4', label: 'PC4', img: 'PC4.png' },
+          { id: 'pc5', label: 'PC5', img: 'PC5.png' },
+          { id: 'pc6', label: 'PC6', img: 'PC6.png' }
+        ];
+        const problems = [
+          "No Problem", "Cable short detected", "Open cable detected",
+          "Connector on backward", "Bad subnet", "Wrong VLAN",
+          "Cable too long", "Port shut down", "Crossover cable used"
+        ];
+        const solutions = [
+          "Replace cable", "Change subnet mask", "Change VLAN assignment",
+          "Change IP address", "Enable Spanning Tree Protocol", "Enable port security",
+          "Flush ARP cache", "Change gateway address", "Change DNS address", "Release and renew IP address"
+        ];
+        const correctAnswers = {
+          switch1: { problem: "No Problem", solution: "" },
+          switch2: { problem: "No Problem", solution: "" },
+          server: { problem: "No Problem", solution: "" },
+          pc1: { problem: "No Problem", solution: "" },
+          pc2: { problem: "Open cable detected", solution: "Replace cable" },
+          pc3: { problem: "No Problem", solution: "" },
+          pc4: { problem: "Wrong VLAN", solution: "Change VLAN assignment" },
+          pc5: { problem: "Connector on backward", solution: "Replace cable" },
+          pc6: { problem: "No Problem", solution: "" }
+        };
+        const selections = {};
+
+        window.addEventListener('DOMContentLoaded', () => {
+          const wrapper = document.querySelector('.image-wrapper');
+          devices.forEach(d => {
+            const div = document.createElement('div');
+            div.className = 'dialog';
+            div.id = `dialog-${d.id}`;
+            div.innerHTML = `<strong>${d.label}</strong><br>
+              <img src="${d.img}"><div class="dropdown-container">
+              <select class="problem">
+                <option disabled selected>--Select a problem--</option>
+              </select>
+              <select class="solution" disabled>
+                <option disabled selected>--Select a solution--</option>
+              </select>
+            </div>
+            <button onclick="closeDialog('${d.id}')">Close</button>`;
+            wrapper.appendChild(div);
+          });
+        });
+
+        function openDialog(id) {
+          const dialog = document.getElementById(`dialog-${id}`);
+          const prob = dialog.querySelector('.problem');
+          const sol = dialog.querySelector('.solution');
+          prob.innerHTML = `<option disabled selected>--Select a problem--</option>`;
+          sol.innerHTML = `<option disabled selected>--Select a solution--</option>`;
+          randomize(problems).forEach(p => {
+            const opt = new Option(p, p);
+            if (selections[id]?.problem === p) opt.selected = true;
+            prob.appendChild(opt);
+          });
+          randomize(solutions).forEach(s => {
+            const opt = new Option(s, s);
+            if (selections[id]?.solution === s) opt.selected = true;
+            sol.appendChild(opt);
+          });
+          sol.disabled = !selections[id] || selections[id].problem === "No Problem";
+
+          prob.onchange = () => {
+            selections[id] = selections[id] || {};
+            selections[id].problem = prob.value;
+            sol.disabled = prob.value === "No Problem";
+          };
+          sol.onchange = () => {
+            selections[id] = selections[id] || {};
+            selections[id].solution = sol.value;
+          };
+          dialog.style.display = 'block';
+        }
+
+        function closeDialog(id) {
+          document.getElementById(`dialog-${id}`).style.display = 'none';
+        }
+
+        function resetAll() {
+          document.querySelectorAll('.dialog').forEach(d => d.style.display = 'none');
+          Object.keys(selections).forEach(k => delete selections[k]);
+        }
+
+        function toggleSidebar() {
+          document.getElementById('sidebar').classList.toggle('hidden');
+        }
+
+function submitAnswers() {
+  let score = 0;
+  let details = '';
+  devices.forEach(d => {
+    const sel = selections[d.id] || {};
+    const ans = correctAnswers[d.id];
+    let problemCorrect = sel.problem === ans.problem;
+    let solutionCorrect = false;
+
+    if (ans.problem === "No Problem") {
+      // If the correct answer is No Problem, and user selects it — award full points (2)
+      if (sel.problem === "No Problem") {
+        score += 2;
+      } else {
+        details += `<p><strong>${d.label}</strong><br>
+        Selected Problem: ${sel.problem || 'None'}<br>
+        Correct Problem: No Problem<br>
+        Solution: N/A (should not be selected)</p><hr>`;
+      }
+    } else {
+      // Normal case: award 1 point per correct match
+      if (problemCorrect) score++;
+      if (sel.solution === ans.solution) {
+        score++;
+        solutionCorrect = true;
+      }
+
+      if (!problemCorrect || !solutionCorrect) {
+        details += `<p><strong>${d.label}</strong><br>
+        Selected Problem: ${sel.problem || 'None'}<br>
+        Selected Solution: ${sel.solution || 'None'}<br><br>
+        Correct Problem: ${ans.problem}<br>
+        Correct Solution: ${ans.solution || 'None'}</p><hr>`;
+      }
+    }
+  });
+
+  document.getElementById('scoreText').innerHTML = `<strong>Your Score:</strong> ${score} / 18`;
+  document.getElementById('incorrectDetails').innerHTML = details || '<p>All answers correct!</p>';
+  document.getElementById('resultsDialog').style.display = 'block';
+}
+
+        function randomize(arr) {
+          return [...arr].sort(() => Math.random() - 0.5);
+        }
+
+        document.addEventListener('mousedown', function(e) {
+          const dialog = e.target.closest('.dialog');
+          if (!dialog || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') return;
+          let offsetX = e.clientX - dialog.getBoundingClientRect().left;
+          let offsetY = e.clientY - dialog.getBoundingClientRect().top;
+          function move(e) {
+            dialog.style.left = `${e.clientX - offsetX}px`;
+            dialog.style.top = `${e.clientY - offsetY}px`;
+            dialog.style.transform = 'none';
+          }
+          function up() {
+            document.removeEventListener('mousemove', move);
+            document.removeEventListener('mouseup', up);
+          }
+          document.addEventListener('mousemove', move);
+          document.addEventListener('mouseup', up);
+        });
+      </script>
+    </div>
+  </div>
+</div>
+<div class="button-bar">
+  <button onclick="resetAll()">Reset All</button>
+  <button onclick="submitAnswers()">Submit</button>
+</div>
+</body>
+</html>

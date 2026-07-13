@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Device Placement/Configuration Simulation</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    header {
+      background-color: #004080;
+      color: white;
+      text-align: center;
+      padding: 15px;
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    #container {
+      display: flex;
+      height: calc(100% - 70px);
+    }
+
+    #sidebar {
+      width: 300px;
+      background-color: #f1f1f1;
+      padding: 15px;
+      overflow-y: auto;
+    }
+
+    #main {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background-color: #e0e0e0;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #deviceList {
+      width: 160px;
+      background-color: #ffffff;
+      border-left: 1px solid #ccc;
+      padding: 10px;
+      height: 100%;
+      box-sizing: border-box;
+    }
+
+    #deviceList h3 {
+      text-align: center;
+      margin: 10px 0;
+    }
+
+    .device {
+      padding: 8px;
+      margin: 5px 0;
+      background-color: #d9edf7;
+      border: 1px solid #bce8f1;
+      cursor: grab;
+      text-align: center;
+    }
+
+    #buildingArea {
+      position: relative;
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+    }
+
+    #imageWrapper {
+      position: relative;
+      width: 100%;
+      max-width: 1000px;
+      max-height: 90vh;
+    }
+
+    #buildingImage {
+      width: 100%;
+      height: auto;
+      max-height: 90vh;
+      display: block;
+    }
+
+    .dropzone {
+      position: absolute;
+      width: 10%;
+      height: 7%;
+      border: 2px dashed #666;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dz1 { top: 16%; left: 16.5%; }
+    .dz2 { top: 16%; left: 73%; }
+    .dz3 { top: 17.8%; left: 44.75%; }
+    .dz4 { top: 41.75%; left: 44.75%; }
+    .dz5 { top: 67.75%; left: 44.75%; }
+
+    .placed {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      text-align: center;
+      background-color: #e6ffe6;
+    }
+
+    .remove-btn {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background-color: red;
+      color: white;
+      border: none;
+      font-size: 12px;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .config-btn {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      background-color: #ccc;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    #buttons {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 20px;
+    }
+
+    button.action {
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button.action:hover {
+      background-color: #0056b3;
+    }
+
+    /* WAP Dialog styling */
+    #wapDialog, #extenderDialog {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 550px;
+      background: #fff;
+      border: 2px solid #007BFF;
+      border-radius: 8px;
+      z-index: 999;
+      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+      padding: 20px;
+      font-size: 14px;
+    }
+
+    .dialog-section {
+      margin-bottom: 10px;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    .dialog-section label {
+      display: block;
+      margin: 5px 0 2px;
+    }
+
+    .dialog-section input[type="text"],
+    .dialog-section select {
+      width: 100%;
+      padding: 5px;
+      margin-bottom: 5px;
+      box-sizing: border-box;
+    }
+
+    #wapDialogButtons {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .btn {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .btn-save { background-color: #28a745; color: white; }
+    .btn-close { background-color: #6c757d; color: white; }
+    .btn-reset { background-color: #ddd; }
+
+    /* Basic Config Dialog */
+    #configDialog {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 998;
+      background-color: white;
+      border: 2px solid #444;
+      border-radius: 8px;
+      width: 300px;
+      padding: 20px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+    }
+
+    .dialog-content {
+      position: relative;
+    }
+
+    #closeDialog {
+      position: absolute;
+      top: 5px;
+      right: 10px;
+      cursor: pointer;
+      color: #888;
+      font-size: 20px;
+    }
+
+    #closeDialog:hover {
+      color: #000;
+    }
+
+    #firewallDialog {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      background: #fff;
+      border: 2px solid #007BFF;
+      border-radius: 8px;
+      z-index: 999;
+      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+      padding: 20px;
+      font-size: 14px;
+    }
+
+    #firewallDialog table,
+    #firewallDialog th,
+    #firewallDialog td {
+      border: 1px solid #ccc;
+      padding: 6px 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>Device Placement/Configuration Simulation</header>
+  <div id="container">
+    <div id="sidebar">
+      <h2>SIMULATION</h2>
+      <p>A network administrator has been tasked with configuring a network for a new corporate office. The office consists of two buildings, separated by 50 feet with no physical connectivity. The configuration must meet the following requirements:</p>
+      <ul>
+        <li>Devices in both buildings should be able to access the Internet.</li>
+        <li>Security insists that all Internet traffic be inspected before entering the network.</li>
+        <li>Desktops should not see traffic destined for other devices.</li>
+      </ul>
+      <h2>INSTRUCTIONS</h2>
+      <p>Select the appropriate network device for each location. If applicable, click on the magnifying glass next to any device which may require configuration updates and make any necessary changes.</p>
+      <p>Devices can only be used once. Not all devices will be used, but all locations should be filled.</p>
+      <p>If at any time you would like to bring back the initial state of the simulation, please click the Reset All button.</p>
+    </div>
+
+    <div id="main">
+      <div id="buildingArea">
+        <div id="imageWrapper">
+          <img id="buildingImage" src="Building%20Layout.png" alt="Building Layout">
+          <div class="dropzone dz1" data-answer="Switch"></div>
+          <div class="dropzone dz2" data-answer="WAP"></div>
+          <div class="dropzone dz3" data-answer="Firewall"></div>
+          <div class="dropzone dz4" data-answer="Router"></div>
+          <div class="dropzone dz5" data-answer="Wireless range extender"></div>
+        </div>
+      </div>
+
+      <div id="deviceList">
+        <h3>Devices</h3>
+        <div class="device" draggable="true">Hub</div>
+        <div class="device" draggable="true">Switch</div>
+        <div class="device" draggable="true">WAP</div>
+        <div class="device" draggable="true">Firewall</div>
+        <div class="device" draggable="true">Router</div>
+        <div class="device" draggable="true">Wireless range extender</div>
+      </div>
+
+      <div id="buttons">
+        <button class="action" onclick="resetAll()">Reset All</button>
+        <button class="action" onclick="submitSimulation()">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WAP Dialog -->
+  <div id="wapDialog">
+    <h3 style="background-color:#007bff; color:white; padding:10px; margin:-20px -20px 10px; border-radius:8px 8px 0 0;">WAP Settings</h3>
+
+    <div class="dialog-section">
+      <label>Access Point Name</label>
+      <input type="text" id="wap-name" value="WAP1" readonly disabled />
+
+      <label>Gateway</label>
+      <input type="text" id="wap-gateway" value="192.168.0.1" readonly disabled />
+
+      <label>SSID</label>
+      <input type="text" id="wap-ssid" value="CORP" readonly disabled />
+
+      <label>SSID Broadcast</label>
+      <div style="display: flex; gap: 15px; margin-left: 10px;">
+        <label><input type="radio" name="broadcast" value="yes" checked disabled /> Yes</label>
+        <label><input type="radio" name="broadcast" value="no" disabled /> No</label>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 10px;">
+      <div class="dialog-section" style="flex: 1;">
+        <strong>Wireless</strong>
+        <label>Mode</label>
+        <select id="wap-mode">
+          <option>G</option>
+          <option>N</option>
+          <option>AC</option>
+        </select>
+        <label>Channel</label>
+        <!-- UPDATED: 5 GHz-style channels -->
+        <select id="wap-channel">
+          <option>36</option>
+          <option>40</option>
+          <option>44</option>
+          <option>48</option>
+        </select>
+      </div>
+
+      <div class="dialog-section" style="flex: 1;">
+        <strong>Wired</strong>
+        <label>Speed</label>
+        <div style="display: flex; gap: 10px; margin-left: 10px;">
+          <label><input type="radio" name="speed" checked disabled /> Auto</label>
+          <label><input type="radio" name="speed" disabled /> 100</label>
+          <label><input type="radio" name="speed" disabled /> 1000</label>
+        </div>
+        <label>Duplex</label>
+        <div style="display: flex; gap: 10px; margin-left: 10px;">
+          <label><input type="radio" name="duplex" checked disabled /> Auto</label>
+          <label><input type="radio" name="duplex" disabled /> Half</label>
+          <label><input type="radio" name="duplex" disabled /> Full</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="dialog-section">
+      <strong>Security Configuration</strong><br>
+      <label>Security Settings</label>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-left: 10px;">
+        <label><input type="radio" name="sec" /> None</label>
+        <label><input type="radio" name="sec" /> WEP</label>
+        <label><input type="radio" name="sec" /> WPA</label>
+        <label><input type="radio" name="sec" /> WPA2</label>
+        <label><input type="radio" name="sec" checked /> WPA2 - Enterprise</label>
+      </div>
+      <label>Key or Passphrase</label>
+      <input type="text" value="S3cretkey!" id="wap-passphrase" readonly disabled/>
+    </div>
+
+    <div id="wapDialogButtons">
+      <div>
+        <button class="btn btn-save" onclick="alert('Settings saved!')">Save</button>
+        <button class="btn btn-close" onclick="document.getElementById('wapDialog').style.display='none'">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Extender Dialog -->
+  <div id="extenderDialog">
+    <h3 style="background-color:#007bff; color:white; padding:10px; margin:-20px -20px 10px; border-radius:8px 8px 0 0;">Wireless range extender settings</h3>
+
+    <div class="dialog-section">
+      <label>Access Point Name</label>
+      <input type="text" value="WAP extender" readonly disabled />
+
+      <label>Gateway</label>
+      <input type="text" value="192.168.0.1" readonly disabled />
+
+      <label>SSID</label>
+      <input type="text" value="CORP" readonly disabled />
+
+      <label>SSID Broadcast</label>
+      <div style="display: flex; gap: 15px; margin-left: 10px;">
+        <label><input type="radio" disabled checked /> Yes</label>
+        <label><input type="radio" disabled /> No</label>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 10px;">
+      <div class="dialog-section" style="flex: 1;">
+        <strong>Wireless</strong>
+        <label>Mode</label>
+        <select>
+          <option>G</option>
+          <option>N</option>
+          <option>AC</option>
+        </select>
+        <label>Channel</label>
+        <!-- UPDATED: 5 GHz-style channels -->
+        <select>
+          <option>36</option>
+          <option>40</option>
+          <option>44</option>
+          <option>48</option>
+        </select>
+      </div>
+
+      <div class="dialog-section" style="flex: 1;">
+        <strong>Wired</strong>
+        <label>Speed</label>
+        <div style="display: flex; gap: 10px; margin-left: 10px;">
+          <label><input type="radio" name="speed-ext" checked disabled /> Auto</label>
+          <label><input type="radio" name="speed-ext" disabled /> 100</label>
+          <label><input type="radio" name="speed-ext" disabled /> 1000</label>
+        </div>
+        <label>Duplex</label>
+        <div style="display: flex; gap: 10px; margin-left: 10px;">
+          <label><input type="radio" name="duplex-ext" checked disabled /> Auto</label>
+          <label><input type="radio" name="duplex-ext" disabled /> Half</label>
+          <label><input type="radio" name="duplex-ext" disabled /> Full</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="dialog-section">
+      <strong>Security Configuration</strong><br>
+      <label>Security Settings</label>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-left: 10px;">
+        <label><input type="radio" name="sec-ext" /> None</label>
+        <label><input type="radio" name="sec-ext" /> WEP</label>
+        <label><input type="radio" name="sec-ext" /> WPA</label>
+        <label><input type="radio" name="sec-ext" /> WPA2</label>
+        <label><input type="radio" name="sec-ext" checked /> WPA2 - Enterprise</label>
+      </div>
+      <label>Key or Passphrase</label>
+      <input type="text" id="extender-passphrase" value="N@En71$90*Ha" />
+    </div>
+
+    <div id="wapDialogButtons">
+      <div>
+        <button class="btn btn-save" onclick="alert('Extender settings saved!')">Save</button>
+        <button class="btn btn-close" onclick="document.getElementById('extenderDialog').style.display='none'">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firewall Dialog (CLEANED UP) -->
+  <div id="firewallDialog">
+    <h3 style="background-color:#007bff; color:white; padding:10px; margin:-20px -20px 10px; border-radius:8px 8px 0 0;">Firewall</h3>
+
+    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+      <tr>
+        <th>Rule Name</th><th>Source</th><th>Destination</th><th>Port</th><th>Action</th>
+      </tr>
+      <tr>
+        <td>DNS Rule</td><td>192.168.0.1/24</td><td>ANY</td><td>53 (DNS)</td>
+        <td><select class="firewall-action"><option>PERMIT</option><option>DENY</option></select></td>
+      </tr>
+      <tr>
+        <td>HTTPS Outbound</td><td>192.169.0.1/24</td><td>ANY</td><td>443 (HTTPS)</td>
+        <td><select class="firewall-action"><option>PERMIT</option><option>DENY</option></select></td>
+      </tr>
+      <tr>
+        <td>Management</td><td>ANY</td><td>192.168.0.1/24</td><td>22 (SSH)</td>
+        <td><select class="firewall-action"><option>PERMIT</option><option>DENY</option></select></td>
+      </tr>
+      <tr>
+        <td>HTTPS Inbound</td><td>ANY</td><td>192.168.0.1/24</td><td>443 (HTTPS)</td>
+        <td><select class="firewall-action"><option>PERMIT</option><option>DENY</option></select></td>
+      </tr>
+      <tr>
+        <td>HTTP Inbound</td><td>ANY</td><td>192.168.0.1/24</td><td>80 (HTTP)</td>
+        <td><select class="firewall-action"><option>PERMIT</option><option>DENY</option></select></td>
+      </tr>
+    </table>
+
+    <div id="wapDialogButtons">
+      <div>
+        <button class="btn btn-save" onclick="alert('Firewall rules saved!')">Save</button>
+        <button class="btn btn-close" onclick="document.getElementById('firewallDialog').style.display='none'">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Basic Dialog -->
+  <div id="configDialog">
+    <div class="dialog-content">
+      <span id="closeDialog">&times;</span>
+      <h3 id="dialogTitle">Configuration</h3>
+      <p id="dialogBody">Device-specific configuration options would appear here.</p>
+    </div>
+  </div>
+
+  <script>
+    function getRandomValue(array) {
+      return array[Math.floor(Math.random() * array.length)];
+    }
+
+    function randomizeFirewallActions() {
+      const options = ["PERMIT", "DENY"];
+      const selects = document.querySelectorAll('.firewall-action');
+      selects.forEach(select => {
+        select.value = options[Math.floor(Math.random() * options.length)];
+      });
+    }
+
+    function randomizeWAPSettings() {
+      const wapModeOptions = ["G", "N", "AC"];
+      // UPDATED: 5 GHz channel options
+      const wapChannelOptions = ["36", "40", "44", "48"];
+      const secOptions = Array.from(document.getElementsByName("sec"));
+
+      const mode = getRandomValue(wapModeOptions);
+      const channel = getRandomValue(wapChannelOptions);
+      const randomSec = getRandomValue(secOptions);
+
+      document.getElementById('wap-mode').value = mode;
+      document.getElementById('wap-channel').value = channel;
+      document.getElementById('wap-passphrase').value = "S3cretkey!";
+
+      secOptions.forEach(r => r.checked = false);
+      randomSec.checked = true;
+
+      window.currentWAPMode = mode;
+      window.currentWAPChannel = channel;
+    }
+
+    function randomizeExtenderSettings() {
+      if (!window.currentWAPMode || !window.currentWAPChannel) {
+        window.currentWAPMode = "AC";
+        window.currentWAPChannel = "36";
+      }
+
+      const extenderDialog = document.getElementById('extenderDialog');
+      extenderDialog.querySelectorAll('select')[0].value = window.currentWAPMode;
+      extenderDialog.querySelectorAll('select')[1].value = window.currentWAPChannel;
+
+      const extSecOptions = Array.from(document.getElementsByName("sec-ext"));
+      const randomExtSec = getRandomValue(extSecOptions);
+      extSecOptions.forEach(r => r.checked = false);
+      randomExtSec.checked = true;
+
+      extenderDialog.querySelector('input[type="text"]').value = "S3cretkey!";
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      randomizeWAPSettings();
+      randomizeExtenderSettings();
+      randomizeFirewallActions();
+    });
+
+    function resetExtender() {
+      const extDialog = document.getElementById('extenderDialog');
+      extDialog.querySelector('select:nth-of-type(1)').value = "G";
+      extDialog.querySelector('select:nth-of-type(2)').value = "36";
+      document.querySelectorAll('input[name="speed-ext"]').forEach((r, i) => r.checked = (i === 0));
+      document.querySelectorAll('input[name="duplex-ext"]').forEach((r, i) => r.checked = (i === 0));
+      document.querySelectorAll('input[name="sec-ext"]').forEach(r => {
+        r.checked = r.nextSibling.nodeValue.trim() === "WPA2 - Enterprise";
+      });
+      document.getElementById('extender-passphrase').value = "N@En71$90*Ha";
+    }
+
+    function resetFirewall() {
+      const defaultActions = ["PERMIT", "PERMIT", "PERMIT", "DENY", "DENY"];
+      const selects = document.querySelectorAll('#firewallDialog select');
+      selects.forEach((sel, i) => {
+        sel.value = defaultActions[i];
+      });
+    }
+
+    const deviceList = document.getElementById('deviceList');
+    const dropzones = document.querySelectorAll('.dropzone');
+    let draggedDevice = null;
+
+    document.querySelectorAll('.device').forEach(device => {
+      device.addEventListener('dragstart', () => {
+        draggedDevice = device;
+      });
+    });
+
+    dropzones.forEach(zone => {
+      zone.addEventListener('dragover', e => e.preventDefault());
+      zone.addEventListener('drop', () => {
+        if (draggedDevice) {
+          const deviceName = draggedDevice.textContent;
+          const placed = document.createElement('div');
+          placed.className = 'placed';
+          placed.textContent = deviceName;
+
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'remove-btn';
+          removeBtn.innerText = 'X';
+
+          const restoredDevice = draggedDevice.cloneNode(true);
+          restoredDevice.addEventListener('dragstart', () => {
+            draggedDevice = restoredDevice;
+          });
+
+          removeBtn.onclick = () => {
+            deviceList.appendChild(restoredDevice);
+            zone.innerHTML = '';
+          };
+
+          placed.appendChild(removeBtn);
+
+          if (["Firewall", "WAP", "Wireless range extender"].includes(deviceName)) {
+            const configBtn = document.createElement('button');
+            configBtn.className = 'config-btn';
+            configBtn.innerText = '🔍';
+            configBtn.onclick = () => {
+              if (deviceName === "WAP") {
+                document.getElementById('wapDialog').style.display = 'block';
+              } else if (deviceName === "Wireless range extender") {
+                document.getElementById('extenderDialog').style.display = 'block';
+              } else if (deviceName === "Firewall") {
+                document.getElementById('firewallDialog').style.display = 'block';
+              } else {
+                document.getElementById('dialogTitle').innerText = `${deviceName} Configuration`;
+                document.getElementById('dialogBody').innerText = `Settings for ${deviceName} would go here.`;
+                document.getElementById('configDialog').style.display = 'block';
+              }
+            };
+            placed.appendChild(configBtn);
+          }
+
+          zone.innerHTML = '';
+          zone.appendChild(placed);
+          draggedDevice.remove();
+          draggedDevice = null;
+        }
+      });
+    });
+
+    document.getElementById('closeDialog').onclick = () => {
+      document.getElementById('configDialog').style.display = 'none';
+    };
+
+    function resetWAP() {
+      document.getElementById('wap-name').value = "WAP1";
+      document.getElementById('wap-gateway').value = "192.168.0.1";
+      document.getElementById('wap-ssid').value = "CORP";
+      document.getElementById('wap-mode').value = "G";
+      document.getElementById('wap-channel').value = "36";
+      document.getElementById('wap-passphrase').value = "S3cretkey!";
+      document.querySelectorAll('input[name="broadcast"]').forEach(r => r.checked = (r.value === "yes"));
+      document.querySelectorAll('input[name="speed"]').forEach((r, i) => r.checked = (i === 0));
+      document.querySelectorAll('input[name="duplex"]').forEach((r, i) => r.checked = (i === 0));
+      document.querySelectorAll('input[name="sec"]').forEach(r => {
+        r.checked = r.nextSibling.nodeValue.trim() === "WPA2 - Enterprise";
+      });
+    }
+
+    function resetAll() {
+      randomizeWAPSettings();
+      randomizeExtenderSettings();
+      randomizeFirewallActions();
+
+      // Clear all dropzones
+      document.querySelectorAll('.dropzone').forEach(zone => {
+        zone.innerHTML = '';
+      });
+
+      // Restore all devices to the device list
+      const originalDevices = ["Hub", "Switch", "WAP", "Firewall", "Router", "Wireless range extender"];
+      const deviceList = document.getElementById('deviceList');
+      deviceList.innerHTML = '<h3>Devices</h3>';
+      originalDevices.forEach(deviceName => {
+        const device = document.createElement('div');
+        device.className = 'device';
+        device.draggable = true;
+        device.textContent = deviceName;
+        device.addEventListener('dragstart', () => {
+          draggedDevice = device;
+        });
+        deviceList.appendChild(device);
+      });
+    }
+
+    function submitSimulation() {
+      let score = 0;
+      const total = 17;
+      let detailedFeedback = '';
+      let hubUsed = false;
+
+      const expectedDevices = {
+        dz1: "Switch",
+        dz2: "WAP",
+        dz3: "Firewall",
+        dz4: "Router",
+        dz5: "Wireless range extender"
+      };
+
+      const feedbackMap = {
+        "Firewall": "<strong>Firewall:</strong> Should be placed to inspect all incoming traffic.",
+        "Router": "<strong>Router:</strong> Manages routing between internal networks.",
+        "Switch": "<strong>Switch:</strong> Belongs in Building A to support wired clients.",
+        "WAP": "<strong>WAP:</strong> Goes in Building B to provide wireless access.",
+        "Wireless range extender": "<strong>Extender:</strong> Should bridge signal between buildings.",
+        "Hub": "<strong>Hub:</strong> Avoid using hubs in modern networks due to lack of segmentation."
+      };
+
+      // DEVICE PLACEMENT (5 pts)
+      document.querySelectorAll('.dropzone').forEach(zone => {
+        const zoneId = zone.classList[1];
+        const correctDevice = expectedDevices[zoneId];
+        const placed = zone.querySelector('.placed');
+        if (placed) {
+          const deviceName = placed.childNodes[0].nodeValue.trim();
+          if (deviceName === "Hub") hubUsed = true;
+          if (deviceName === correctDevice) score++;
+          else detailedFeedback += `<p>${feedbackMap[correctDevice]}</p>`;
+        } else {
+          detailedFeedback += `<p><strong>${correctDevice}:</strong> Not placed.</p>`;
+        }
+      });
+
+      // Penalize hub usage
+      if (!Array.from(document.querySelectorAll('.device')).some(d => d.textContent.trim() === "Hub")) {
+        hubUsed = true;
+      }
+      if (hubUsed) detailedFeedback += `<p>${feedbackMap["Hub"]}</p>`;
+
+      // WAP SETTINGS (3 pts)
+      const wapMode = document.getElementById('wap-mode').value;
+      const wapChannel = document.getElementById('wap-channel').value;
+      const wapSecurity = Array.from(document.getElementsByName('sec')).find(r => r.checked)?.nextSibling.nodeValue.trim();
+
+      if (wapMode === "AC") score++; else detailedFeedback += `<p><strong>WAP Mode:</strong> Should be AC (5 GHz).</p>`;
+      if (wapChannel === "36") score++; else detailedFeedback += `<p><strong>WAP Channel:</strong> Should be 36 (typical 5 GHz channel).</p>`;
+      if (wapSecurity === "WPA2 - Enterprise") score++; else detailedFeedback += `<p><strong>WAP Security:</strong> Should be WPA2 - Enterprise.</p>`;
+
+      // EXTENDER SETTINGS (4 pts)
+      const extDialog = document.getElementById('extenderDialog');
+      const extMode = extDialog.querySelectorAll('select')[0].value;
+      const extChannel = extDialog.querySelectorAll('select')[1].value;
+      const extSecurity = Array.from(document.getElementsByName('sec-ext')).find(r => r.checked)?.nextSibling.nodeValue.trim();
+      const extPass = extDialog.querySelector('input[type="text"]').value;
+
+      if (extMode === "AC") score++; else detailedFeedback += `<p><strong>Extender Mode:</strong> Should be AC.</p>`;
+      if (extChannel === "36") score++; else detailedFeedback += `<p><strong>Extender Channel:</strong> Should match the WAP (36).</p>`;
+      if (extSecurity === "WPA2 - Enterprise") score++; else detailedFeedback += `<p><strong>Extender Security:</strong> Must match WAP's WPA2 - Enterprise.</p>`;
+      if (extPass === "S3cretkey!") score++; else detailedFeedback += `<p><strong>Extender Passphrase:</strong> Must match WAP (S3cretkey!).</p>`;
+
+      // FIREWALL RULES (5 pts)
+      const firewallSelects = document.querySelectorAll('#firewallDialog select');
+      const correctFirewallActions = ["PERMIT", "PERMIT", "PERMIT", "DENY", "DENY"];
+      const firewallExplanations = [
+        "Allow DNS resolution for internal users to reach external services.",
+        "Allow secure HTTPS connections from internal subnet 192.169.0.1/24.",
+        "Permit SSH access into the internal network from trusted sources.",
+        "Deny incoming HTTPS to internal systems to reduce attack surface.",
+        "Block HTTP access to internal systems to prevent insecure traffic."
+      ];
+
+      firewallSelects.forEach((sel, i) => {
+        if (sel.value === correctFirewallActions[i]) {
+          score++;
+        } else {
+          detailedFeedback += `<p><strong>Firewall Rule ${i + 1}:</strong> Should be <em>${correctFirewallActions[i]}</em>. ${firewallExplanations[i]}</p>`;
+        }
+      });
+
+      // RESULTS OUTPUT
+      const output = document.getElementById('scoreOutput');
+      if (score === total && !hubUsed) {
+        output.innerHTML = `<strong>Perfect!</strong> All placements and settings are correct!`;
+      } else {
+        output.innerHTML = `<strong>You scored ${score} out of ${total}.</strong><br>${detailedFeedback}`;
+      }
+
+      document.getElementById('resultsDialog').style.display = 'block';
+    }
+  </script>
+
+  <div id="resultsDialog" style="
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px;
+    border: 2px solid #007BFF;
+    border-radius: 8px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.3);
+    z-index: 1000;
+    width: 400px;
+    font-family: Arial, sans-serif;
+    text-align: center;
+  ">
+    <h3>Results</h3>
+    <p id="scoreOutput"></p>
+    <button onclick="document.getElementById('resultsDialog').style.display='none'" style="
+      margin-top: 15px;
+      padding: 8px 16px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    ">Close</button>
+  </div>
+
+</body>
+</html>

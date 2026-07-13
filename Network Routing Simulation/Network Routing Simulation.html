@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Network Routing Simulation</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background-color: #f0f0f0; }
+    header {
+      background-color: #007BFF; color: white; padding: 20px;
+      text-align: center; font-size: 24px; font-weight: bold;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .layout { display: flex; flex-direction: row; }
+    .sidebar {
+      width: 300px; background-color: #ffffff; padding: 20px;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.1); height: 100vh;
+      box-sizing: border-box;
+    }
+    .sidebar h2 { font-size: 18px; margin-top: 0; }
+    .sidebar h3 { margin-bottom: 5px; }
+    .sidebar button {
+      margin-top: 10px; background-color: #dc3545; color: white;
+      border: none; padding: 10px 15px; font-weight: bold;
+      border-radius: 4px; cursor: pointer;
+    }
+    .sidebar #checkScoreBtn {
+      background-color: #28a745; margin-top: 20px;
+    }
+    .main { flex: 1; padding: 20px; }
+    .container { position: relative; width: 100%; max-width: 1200px; margin: auto; }
+    .image-wrapper { position: relative; width: 100%; }
+    .image-wrapper img { width: 100%; height: auto; display: block; }
+    .clickable {
+      position: absolute; cursor: pointer; z-index: 2;
+    }
+    #routerA { top: 55%; left: 32.5%; width: 6.5%; height: 5%; }
+    #routerC { top: 55%; left: 52%; width: 6.5%; height: 5%; }
+    #routerB { top: 55%; left: 72.5%; width: 6.5%; height: 5%; }
+    dialog {
+      position: fixed; top: 100px; left: 100px; border: none; border-radius: 8px;
+      padding: 0; box-shadow: 0 0 15px rgba(0,0,0,0.3); max-width: 600px;
+      width: 100%; z-index: 10;
+    }
+    dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
+    .dialog-header {
+      padding: 15px; background-color: #007BFF; color: white; font-weight: bold;
+      border-radius: 8px 8px 0 0; cursor: move;
+    }
+    .tab-bar {
+      display: flex; background: #f2f2f2; border-bottom: 1px solid #ccc;
+    }
+    .tab {
+      flex: 1; padding: 10px; text-align: center; cursor: pointer;
+      border-bottom: 2px solid transparent; font-weight: bold;
+    }
+    .tab.active {
+      border-bottom: 2px solid #007BFF; background-color: #e8f1ff;
+    }
+    .tab-content {
+      padding: 15px; display: none; max-height: 400px;
+      overflow-y: auto; font-family: monospace; font-size: 13px;
+      white-space: pre-wrap;
+    }
+    .tab-content.active { display: block; }
+    .close-btn, #resetRouterBtn {
+      display: block; margin: 10px auto; border: none; padding: 8px 12px;
+      border-radius: 4px; cursor: pointer; font-weight: bold;
+    }
+    #resetRouterBtn { background-color: #ffc107; color: #000; }
+    .close-btn { background-color: #007BFF; color: white; }
+    input[type="text"], select {
+      width: 100%; padding: 6px; margin-bottom: 10px; font-size: 14px;
+      border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;
+    }
+    #saveRouteBtn {
+      margin-top: 10px; background-color: #28a745; color: white;
+    }
+    .horizontal-radios label { margin-right: 15px; }
+    @media (max-width: 768px) {
+      .layout { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; }
+      .main { padding: 10px; }
+      dialog { width: 95%; }
+    }
+  </style>
+</head>
+<body>
+<header>Network Routing Simulation</header>
+<div class="layout">
+  <div class="sidebar">
+    <h2>SIMULATION</h2>
+    <p>Users are unable to access files on their department share located on <strong>File Server 2</strong>. The network administrator has been tasked with validating routing between networks hosting <strong>Workstation A</strong> and <strong>File Server 2</strong>.</p>
+    <h3>INSTRUCTIONS</h3>
+    <p>Click on each router to review output, identify any issues, and configure the appropriate solution.</p>
+    <p>If at any time you would like to bring back the initial state of the simulation, please click the <strong>Reset All</strong> button.</p>
+    <button onclick="resetSimulation()">Reset All</button>
+    <button id="checkScoreBtn" onclick="checkAnswers()">Check Score</button>
+    <div id="scoreResult" style="margin-top: 15px; font-weight: bold;"></div>
+  </div>
+  <div class="main">
+    <div class="container">
+      <div class="image-wrapper">
+        <img src="network_layout.png" alt="Network Layout">
+        <div id="routerA" class="clickable" onclick="showDialog('A')"></div>
+        <div id="routerB" class="clickable" onclick="showDialog('B')"></div>
+        <div id="routerC" class="clickable" onclick="showDialog('C')"></div>
+      </div>
+      <dialog id="dialog">
+        <div class="dialog-header" id="dialogTitle" onmousedown="dragStart(event)">Router Info</div>
+        <div class="tab-bar">
+          <div class="tab active" onclick="switchTab('table')">Routing Table</div>
+          <div class="tab" onclick="switchTab('config')">Routing Configuration</div>
+        </div>
+        <div id="routingTable" class="tab-content active"></div>
+        <div id="routingConfig" class="tab-content">
+          <form onsubmit="event.preventDefault(); saveStaticRoute();">
+            <strong>Was a problem found?</strong>:
+            <div class="horizontal-radios" style="margin-bottom: 10px;">
+              <label><input type="radio" name="problemFound" value="yes"> Yes</label>
+              <label><input type="radio" name="problemFound" value="no" checked> No</label>
+            </div>
+            <hr />
+            <strong>Install Static Route</strong><br /><br />
+            <label for="destination">Destination Prefix:</label>
+            <input type="text" id="destination" name="destination" />
+            <label for="mask">Destination Prefix Mask:</label>
+            <input type="text" id="mask" name="mask" />
+            <label for="interface">Interface:</label>
+            <select id="interface" name="interface">
+              <option value="">-- Select Interface --</option>
+              <option value="GigabitEthernet1">Gi1</option>
+              <option value="GigabitEthernet2">Gi2</option>
+              <option value="GigabitEthernet3">Gi3</option>
+            </select>
+            <button id="saveRouteBtn" type="submit">Save Static Route</button>
+          </form>
+        </div>
+        <button id="resetRouterBtn" onclick="resetCurrentRouter()">Reset Router</button>
+        <button class="close-btn" onclick="document.getElementById('dialog').close()">Close</button>
+      </dialog>
+    </div>
+  </div>
+</div>
+<script>
+let isDragging = false, offsetX, offsetY;
+let activeRouter = null;
+const staticRoutes = { A: [], B: [], C: [] };
+const routerForms = {
+  A: { destination: '', mask: '', interface: '', problemFound: 'no' },
+  B: { destination: '', mask: '', interface: '', problemFound: 'no' },
+  C: { destination: '', mask: '', interface: '', problemFound: 'no' }
+};
+
+// *** UPDATED ANSWER KEY ***
+// A: no problem
+// B: missing summary route to 10.0.4.0/22 via Gi1
+// C: no problem
+const correctAnswers = {
+  A: { problemFound: 'no' },
+  B: { problemFound: 'yes', destination: '10.0.4.0', mask: '255.255.252.0', interface: 'GigabitEthernet1' },
+  C: { problemFound: 'no' }
+};
+
+function checkAnswers() {
+  let total = 3, correct = 0;
+  let feedback = [];
+  for (let r of ['A', 'B', 'C']) {
+    let user = routerForms[r];
+    let answer = correctAnswers[r];
+    if (user.problemFound !== answer.problemFound) {
+      feedback.push(`Router ${r}: Incorrect (problem found selection)`);
+      continue;
+    }
+    if (answer.problemFound === 'yes') {
+      if (user.destination === answer.destination &&
+          user.mask === answer.mask &&
+          user.interface === answer.interface) {
+        feedback.push(`Router ${r}: Correct`);
+        correct++;
+      } else {
+        feedback.push(`Router ${r}: Incorrect (static route config)`);
+      }
+    } else {
+      feedback.push(`Router ${r}: Correct`);
+      correct++;
+    }
+  }
+  document.getElementById('scoreResult').innerHTML =
+    `Score: ${correct}/${total}<br>` + feedback.join('<br>');
+}
+
+function showDialog(router) {
+  saveFormState();
+  activeRouter = router;
+  const dialog = document.getElementById('dialog');
+  const title = document.getElementById('dialogTitle');
+  const table = document.getElementById('routingTable');
+
+  const baseTable = {
+    A: `Router-A# show ip route
+
+Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP,
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF interarea, 
+       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2,
+       E1 - OSPF external type 1, E2 - OSPF external type 2, m - OMP,
+       n - NAT, Ni - NAT inside, No - NAT outside, Nd NAT DIA,
+       i - IS-IS, su - IS-IS summary, L1 - IS-IS level-1, L2 IS-IS level-2,
+       ia - IS-IS inter area, * - candidate default, U - per-user static route,
+       H - NHRP, G - NHRP registered, g - NHRP registration summary,
+       o - ODR, P - periodic downloaded static route, l - LISP,
+       a - application route
+       + - replicated route, % - next hop override, p - overrides from PfR
+
+Gateway of last resort is 0.0.0.0 to network 0.0.0.0
+
+S*     0.0.0.0/0 is directly connected, GigabitEthernet1
+       10.0.0.0/8 is variably subnetted, 4 subnets, 2 masks
+C         10.0.4.0/22 is directly connected, GigabitEthernet2
+C         10.0.6.0/24 is directly connected, GigabitEthernet2
+L         10.0.6.1/32 is directly connected, GigabitEthernet2
+       172.16.0.0/16 is variably subnetted, 2 subnets, 2 masks
+C         172.16.27.0/30 is directly connected, GigabitEthernet3
+L         172.16.27.1/32 is directly connected, GigabitEthernet3
+`,
+    // *** UPDATED ROUTER B TABLE (NO DEFAULT ROUTE) ***
+    B: `Router-B# show ip route
+
+Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP,
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF interarea, 
+       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2,
+       E1 - OSPF external type 1, E2 - OSPF external type 2, m - OMP,
+       n - NAT, Ni - NAT inside, No - NAT outside, Nd NAT DIA,
+       i - IS-IS, su - IS-IS summary, L1 - IS-IS level-1, L2 IS-IS level-2,
+       ia - IS-IS inter area, * - candidate default, U - per-user static route,
+       H - NHRP, G - NHRP registered, g - NHRP registration summary,
+       o - ODR, P - periodic downloaded static route, l - LISP,
+       a - application route
+       + - replicated route, % - next hop override, p - overrides from PfR
+
+Gateway of last resort is not set
+
+       10.0.0.0/8 is variably subnetted, 4 subnets, 2 masks
+C         10.0.0.0/22 is directly connected, GigabitEthernet3
+L         10.0.0.1/32 is directly connected, GigabitEthernet3
+       172.16.0.0/16 is variably subnetted, 2 subnets, 2 masks
+C         172.16.27.4/30 is directly connected, GigabitEthernet1
+L         172.16.27.5/32 is directly connected, GigabitEthernet1
+`,
+    C: `Router-C# show ip route
+
+Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP,
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF interarea, 
+       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2,
+       E1 - OSPF external type 1, E2 - OSPF external type 2, m - OMP,
+       n - NAT, Ni - NAT inside, No - NAT outside, Nd NAT DIA,
+       i - IS-IS, su - IS-IS summary, L1 - IS-IS level-1, L2 IS-IS level-2,
+       ia - IS-IS inter area, * - candidate default, U - per-user static route,
+       H - NHRP, G - NHRP registered, g - NHRP registration summary,
+       o - ODR, P - periodic downloaded static route, l - LISP,
+       a - application route
+       + - replicated route, % - next hop override, p - overrides from PfR
+
+       10.0.0.0/8 is variably subnetted, 4 subnets, 2 masks
+S         10.0.0.0/22 [1/0] via GigabitEthernet1
+S         10.0.4.0/22 [1/0] via GigabitEthernet2
+       172.16.0.0/16 is variably subnetted, 2 subnets, 2 masks
+C         172.16.27.0/30 is directly connected, GigabitEthernet2
+L         172.16.27.2/32 is directly connected, GigabitEthernet2
+C         172.16.27.4/30 is directly connected, GigabitEthernet1
+L         172.16.27.6/32 is directly connected, GigabitEthernet1
+`
+  };
+
+  table.textContent = baseTable[router] + staticRoutes[router].join('\n');
+
+  const form = routerForms[router];
+  document.getElementById('destination').value = form.destination;
+  document.getElementById('mask').value = form.mask;
+  document.getElementById('interface').value = form.interface;
+  document.querySelectorAll('input[name="problemFound"]').forEach(r => {
+    r.checked = r.value === form.problemFound;
+  });
+  switchTab('table');
+  dialog.showModal();
+}
+
+function saveFormState() {
+  if (!activeRouter) return;
+  routerForms[activeRouter] = {
+    destination: document.getElementById('destination').value,
+    mask: document.getElementById('mask').value,
+    interface: document.getElementById('interface').value,
+    problemFound: document.querySelector('input[name="problemFound"]:checked')?.value || 'no'
+  };
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector(`.tab:nth-child(${tab === 'table' ? 1 : 2})`).classList.add('active');
+  document.getElementById(tab === 'table' ? 'routingTable' : 'routingConfig').classList.add('active');
+}
+
+function saveStaticRoute() {
+  const problemFound = document.querySelector('input[name="problemFound"]:checked').value;
+  if (problemFound === "no") {
+    alert("No problem found. No static route will be saved.");
+    return;
+  }
+  const dest = document.getElementById('destination').value.trim();
+  const mask = document.getElementById('mask').value.trim();
+  const iface = document.getElementById('interface').value;
+  if (!dest && !mask && !iface) {
+    alert("Please enter at least one field.");
+    return;
+  }
+  const newRoute = `S ${dest} ${mask} is directly connected, ${iface}`;
+  staticRoutes[activeRouter].push(newRoute);
+  showDialog(activeRouter);
+  switchTab('table');
+}
+
+function resetCurrentRouter() {
+  if (!activeRouter) return;
+  staticRoutes[activeRouter] = [];
+  routerForms[activeRouter] = { destination: '', mask: '', interface: '', problemFound: 'no' };
+  alert(`Router ${activeRouter} has been reset.`);
+  showDialog(activeRouter);
+}
+
+function resetSimulation() {
+  Object.keys(staticRoutes).forEach(r => staticRoutes[r] = []);
+  Object.keys(routerForms).forEach(r => {
+    routerForms[r] = { destination: '', mask: '', interface: '', problemFound: 'no' };
+  });
+  document.getElementById('scoreResult').innerHTML = '';
+  alert("Simulation has been reset.");
+}
+
+function dragStart(e) {
+  const dialog = document.getElementById('dialog');
+  isDragging = true;
+  offsetX = e.clientX - dialog.offsetLeft;
+  offsetY = e.clientY - dialog.offsetTop;
+  document.addEventListener('mousemove', dragMove);
+  document.addEventListener('mouseup', dragEnd);
+}
+function dragMove(e) {
+  if (!isDragging) return;
+  const dialog = document.getElementById('dialog');
+  dialog.style.left = `${e.clientX - offsetX}px`;
+  dialog.style.top = `${e.clientY - offsetY}px`;
+}
+function dragEnd() {
+  isDragging = false;
+  document.removeEventListener('mousemove', dragMove);
+  document.removeEventListener('mouseup', dragEnd);
+}
+</script>
+</body>
+</html>

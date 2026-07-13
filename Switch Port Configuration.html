@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Switch Port Configuration</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+  }
+  h1 {
+    text-align: center;
+  }
+  #instructions {
+    margin-bottom: 40px;
+  }
+  #container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 80px 80px;
+    justify-items: center;
+    margin-bottom: 30px;
+  }
+  .switch {
+    width: 700px;
+    height: 120px;
+    border: 3px solid #444;
+    border-radius: 8px;
+    padding: 8px;
+    box-sizing: border-box;
+    position: relative;
+  }
+  .switch-label {
+    position: absolute;
+    top: -28px;
+    left: 315px;
+    font-weight: bold;
+    font-size: 18px;
+    color: black;
+  }
+  .ports-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .port {
+    width: 24px;
+    height: 24px;
+    background: #ddd;
+    border: 1.5px solid #999;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    cursor: default;
+    user-select: none;
+    position: relative;
+  }
+  .port.clickable {
+    background-color: green;
+    color: white;
+    cursor: pointer;
+  }
+  .port.disabled {
+    background: #bbb;
+  }
+  .device-link {
+    position: absolute;
+    font-size: 10px;
+    background: #eee;
+    padding: 2px 4px;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+    user-select: none;
+  }
+/* Cable animation */
+@keyframes dashFlow {
+  to {
+    stroke-dashoffset: -1000;
+  }
+}
+
+line.animated-cable {
+  stroke: #000;
+  stroke-width: 2;
+  stroke-dasharray: 8, 4;
+  stroke-dashoffset: 0;
+  animation: dashFlow 3s linear infinite;
+}
+  /* VLAN Key vertical */
+  #vlan-key {
+    margin-top: 40px;
+    border: 2px solid #444;
+    padding: 8px;
+    width: 150px;
+    font-weight: bold;
+    line-height: 1.6;
+  }
+  /* Modal styles */
+  #config-modal {
+    display: none; /* hidden by default */
+    position: fixed;
+    z-index: 10;
+    left: 0; top: 0;
+    width: 100vw; height: 100vh;
+    background-color: rgba(0,0,0,0.5);
+  }
+  #config-content {
+    background: white;
+    width: 350px;
+    max-width: 90vw;
+    margin: 60px auto;
+    padding: 20px;
+    border-radius: 8px;
+    position: relative;
+  }
+  #config-content h2 {
+    margin-top: 0;
+  }
+  #config-content label {
+    display: block;
+    margin-top: 10px;
+  }
+  #config-content select, #config-content button {
+    margin-top: 4px;
+  }
+  #config-content .vlans-assigned {
+    margin-top: 10px;
+    border: 1px solid #999;
+    padding: 6px;
+    min-height: 30px;
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  .vlan-chip {
+    background: #ddd;
+    padding: 3px 6px;
+    border-radius: 12px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .vlan-chip button {
+    background: #cc4444;
+    border: none;
+    color: white;
+    font-weight: bold;
+    border-radius: 50%;
+    width: 16px; height: 16px;
+    line-height: 16px;
+    cursor: pointer;
+    padding: 0;
+  }
+  #config-close {
+    position: absolute;
+    right: 10px; top: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 18px;
+    border: none;
+    background: none;
+  }
+  #buttons {
+    text-align: center;
+    margin-top: 30px;
+  }
+  #score-display {
+    margin-top: 15px;
+    font-size: 18px;
+    font-weight: bold;
+  }
+  .port.incorrect {
+    border-color: red !important;
+    background: #fdd !important;
+  }
+  /* Device connection lines - simple */
+  .device-link.PC { color: #007acc; }
+  .device-link.Server { color: #cc5500; }
+  .device-link.Printer { color: #007700; }
+  .device-link.AP { color: #aa00aa; }
+  .device-link.IP_Phone { color: #cc0077; }
+  .device-link.Laptop { color: #cc0074; }
+</style>
+</head>
+<body>
+
+<h1>Switch Port Configuration</h1>
+<div id="instructions">
+  You have been assigned to verify switch port configurations. View the configurations of the ports and make adjustments if needed. Be sure to disable unused ports and set ports for redundancy where needed. Not all ports will be clickable. Only the ports with WHITE numbers are clickable. If you need to reset the simulation click the reset button. Once you have finished click submit. All incorrecly configured ports will be highlighted in red.
+</div>
+
+<svg id="cableLines" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1;"></svg>
+
+<div id="container">
+  <div class="switch" id="switch1">
+    <div class="switch-label">Switch 1</div>
+  </div>
+  <div class="switch" id="switch3">
+    <div class="switch-label">Switch 3</div>
+  </div>
+  <div class="switch" id="switch2">
+    <div class="switch-label">Switch 2</div>
+  </div>
+  <div class="switch" id="switch4">
+    <div class="switch-label">Switch 4</div>
+  </div>
+</div>
+
+<div id="vlan-key">
+  <div><b>VLAN KEY</b></div>
+  <div>WLAN = 10</div>
+  <div>Server = 20</div>
+  <div>Wired = 80</div>
+  <div>Printers = 100</div>
+  <div>Voice = 160</div>
+</div>
+
+<div id="buttons">
+  <button id="reset-btn">Reset</button>
+  <button id="submit-btn">Submit</button>
+  <div id="score-display"></div>
+</div>
+
+<!-- Modal dialog -->
+<div id="config-modal">
+  <div id="config-content">
+    <button id="config-close">&times;</button>
+    <h2 id="modal-port-label">Port Configuration</h2>
+    <label>
+      <input type="checkbox" id="enable-toggle" /> Enable Port
+    </label>
+    <label>
+      <input type="checkbox" id="lacp-toggle" /> LACP Enabled
+    </label>
+    <label for="speed-select">Speed:</label>
+    <select id="speed-select">
+      <option value="auto">-Select-</option>
+      <option value="auto">Auto</option>
+      <option value="1000">1000</option>
+      <option value="100">100</option>
+    </select>
+    <label for="duplex-select">Duplex:</label>
+    <select id="duplex-select">
+      <option value="auto">-Select-</option>
+      <option value="auto">Auto</option>
+      <option value="full">Full</option>
+      <option value="half">Half</option>
+    </select>
+    <label for="vlan-select">Add VLAN:</label>
+    <select id="vlan-select">
+      <option value="auto">-Select-</option>
+      <option value="10">VLAN 10 (WLAN)</option>
+      <option value="20">VLAN 20 (Server)</option>
+      <option value="80">VLAN 80 (Wired)</option>
+      <option value="100">VLAN 100 (Printers)</option>
+      <option value="160">VLAN 160 (Voice)</option>
+    </select>
+    <button id="add-vlan-btn">Add VLAN</button>
+    <div id="assigned-vlans" class="vlans-assigned"></div>
+    <div style="margin-top:12px; text-align:right;">
+      <button id="save-config-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // VLAN Definitions for display and validation
+  const VLANS = {
+    10: "WLAN",
+    20: "Server",
+    80: "Wired",
+    100: "Printers",
+    160: "Voice",
+  };
+
+  // For device connections labeling (port: device type)
+  const devicesPerPort = {
+  switch1: {
+    18: "PC",
+    26: "PC",
+    38: "Server",
+    44: "Server",
+  },
+  switch2: {
+    18: "Server",
+    28: "Server",
+  },
+  switch3: {
+    18: "PC",
+    28: "PC",
+    34: "Printer",
+    48: ["AP", "Laptop"], // ← multiple devices here
+  },
+  switch4: {
+    18: ["IP_Phone", "Laptop"], // ← multiple devices here
+    32: "Printer",
+    42: "PC",
+  },
+};
+
+  // Clickable ports for each switch:
+  const clickablePorts = {
+    switch1: [2,4,18,26,29,33,38,44],
+    switch2: [1,3,18,28,37,39,47,48],
+    switch3: [1,2,18,28,34,39,43,48],
+    switch4: [1,2,18,25,32,33,42,45],
+  };
+
+  // Correct configuration for each clickable port
+  // Properties: enabled, lacp, speed, duplex, vlans (array)
+  // For simplicity, 'all' VLAN means [10,20,80,100,160]
+  const ALL_VLANS = [10,20,80,100,160];
+
+  const correctConfigs = {
+    switch1: {
+      2: { enabled:true, lacp:true, speed:"auto", duplex:"auto", vlans: ALL_VLANS },
+      4: { enabled:true, lacp:true, speed:"auto", duplex:"auto", vlans: ALL_VLANS },
+      18: { enabled:true, lacp:false, speed:"auto", duplex:"auto", vlans: [80] },
+      26: { enabled:true, lacp:false, speed:"auto", duplex:"auto", vlans: [80] },
+      29: { enabled:false, lacp:false, speed:"auto", duplex:"auto", vlans: [] },
+      33: { enabled:false, lacp:false, speed:"auto", duplex:"auto", vlans: [] },
+      38: { enabled:true, lacp:false, speed:"auto", duplex:"auto", vlans: [20] },
+      44: { enabled:true, lacp:false, speed:"auto", duplex:"auto", vlans: [20] },
+    },
+    switch2: {
+      1: { enabled:true, lacp:true, speed:"auto", duplex:"auto", vlans: ALL_VLANS },
+      3: { enabled:true, lacp:true, speed:"auto", duplex:"auto", vlans: ALL_VLANS },
+      18: { enabled:true, lacp:false, speed:"auto", duplex:"auto", vlans: [20] },
+      28: { enabled:true, lacp:false, speed:"auto", duplex:"auto", vlans: [20] },
+      37: { enabled:true, lacp:true, speed:"auto", duplex:"auto", vlans: ALL_VLANS },
+      39: { enabled:true, lacp:true, speed:"auto", duplex:"auto", vlans: ALL_VLANS },
+      47: { enabled:true, lacp:true, speed:"auto", duplex:"auto", vlans: ALL_VLANS },
+      48: { enabled:true, lacp:true, speed:"auto", duplex:"auto", vlans: ALL_VLANS },
+    },
+    switch3: {
+      1: { enabled:true, lacp:true, speed:"auto", duplex:"auto", vlans: ALL_VLANS },
+      2: { enabled:true, lacp:true, speed:"auto", duplex:"auto", vlans: ALL_VLANS },
+      18: { enabled:true, lacp:false, speed:"auto", duplex:"auto", vlans: [80] },
+      28: { enabled:true, lacp:false, speed:"auto", duplex:"auto", vlans: [80] },
+      34: { enabled:true, lacp:false, speed:"auto", duplex:"auto", vlans: [100] },
+      39: { enabled:false, lacp:false, speed:"auto", duplex:"auto", vlans: [] }, // Not specified, treat as disabled
+      43: { enabled:false, lacp:false, speed:"auto", duplex:"auto", vlans: [] }, // Not specified, treat as disabled
+      48: { enabled:true, lacp:false, speed:"auto", duplex:"auto", vlans: [10,80] },
+    },
+    switch4: {
+      1: { enabled:true, lacp:true, speed:"auto", duplex:"auto", vlans: ALL_VLANS },
+      2: { enabled:true, lacp:true, speed:"auto", duplex:"auto", vlans: ALL_VLANS },
+      18: { enabled:true, lacp:false, speed:"auto", duplex:"auto", vlans: [10,80,160] },
+      25: { enabled:false, lacp:false, speed:"auto", duplex:"auto", vlans: [] },
+      32: { enabled:true, lacp:false, speed:"auto", duplex:"auto", vlans: [100] },
+      33: { enabled:false, lacp:false, speed:"auto", duplex:"auto", vlans: [] },
+      42: { enabled:true, lacp:false, speed:"auto", duplex:"auto", vlans: [80] },
+      45: { enabled:false, lacp:false, speed:"auto", duplex:"auto", vlans: [] },
+    },
+  };
+
+  // Randomizer helper to slightly randomize initial config for each clickable port:
+  // For example, enabled can be toggled off sometimes, or LACP toggled off/on,
+  // speed and duplex randomized among allowed values,
+  // VLANs randomized by adding/removing some VLANs for practice.
+
+  function randomizeConfig(baseConfig) {
+    // Clone base config to avoid mutation
+    const cfg = JSON.parse(JSON.stringify(baseConfig));
+    // Randomly toggle enable (80% chance keep same, 20% flip)
+    if (Math.random() < 0.2) cfg.enabled = !cfg.enabled;
+    // Randomly toggle LACP (50% chance flip)
+    if (Math.random() < 0.5) cfg.lacp = !cfg.lacp;
+    // Random speed selection from allowed
+    const speeds = ["auto", "1000", "100"];
+    cfg.speed = speeds[Math.floor(Math.random() * speeds.length)];
+    // Random duplex selection
+    const duplexes = ["auto", "full", "half"];
+    cfg.duplex = duplexes[Math.floor(Math.random() * duplexes.length)];
+    // Random VLANs: with 70% chance keep all, else randomly remove or add one VLAN
+    if (cfg.vlans.length > 0 && Math.random() > 0.3) {
+      // 30% chance to remove one VLAN if more than 1 VLAN assigned
+      if (cfg.vlans.length > 1 && Math.random() < 0.5) {
+        cfg.vlans.splice(Math.floor(Math.random() * cfg.vlans.length),1);
+      } else if (cfg.vlans.length < 5 && Math.random() < 0.5) {
+        // else 50% chance to add one VLAN not already in list
+        const available = Object.keys(VLANS).map(Number).filter(v=>!cfg.vlans.includes(v));
+        if (available.length>0) {
+          const newVlan = available[Math.floor(Math.random()*available.length)];
+          cfg.vlans.push(newVlan);
+        }
+      }
+    }
+    return cfg;
+  }
+
+  // Store current configurations of all clickable ports here:
+  // {switchName: {portNum: configObj}}
+  let currentConfigs = {};
+
+  // Utility to create ports for a switch container
+  function createPorts(switchName) {
+    const container = document.getElementById(switchName);
+    container.innerHTML = `<div class="switch-label">${switchName.replace('switch', 'Switch ')}</div>`;
+
+    // Create top row (odd ports 1,3,...47)
+    const topRow = document.createElement("div");
+    topRow.className = "ports-row";
+    // Create bottom row (even ports 2,4,...48)
+    const bottomRow = document.createElement("div");
+    bottomRow.className = "ports-row";
+
+    for(let port=1; port<=48; port++) {
+      const portDiv = document.createElement("div");
+      portDiv.className = "port";
+      portDiv.textContent = port;
+      portDiv.dataset.port = port;
+      portDiv.dataset.switch = switchName;
+      portDiv.id = `${switchName}-port-${port}`;
+      // Is this port clickable?
+      const isClickable = clickablePorts[switchName].includes(port);
+      if(isClickable){
+        portDiv.classList.add("clickable");
+      }
+      // Initial disabled if in correct config is enabled false or not clickable
+      // But disabled style only for clickable ports disabled in correct config
+      let baseConfig = correctConfigs[switchName][port];
+      if(!baseConfig) {
+        baseConfig = {enabled:false, lacp:false, speed:"auto", duplex:"auto", vlans: []};
+      }
+      // Store randomized config for clickable ports only
+      if(isClickable){
+        currentConfigs[switchName] = currentConfigs[switchName] || {};
+        if(!currentConfigs[switchName][port]){
+          currentConfigs[switchName][port] = randomizeConfig(baseConfig);
+        }
+        if(!currentConfigs[switchName][port].enabled){
+          portDiv.classList.add("disabled");
+        }
+      } else {
+        // Non-clickable ports: visually disable (gray) & no pointer
+        portDiv.classList.add("disabled");
+      }
+// Add device link label(s) if exists
+if (devicesPerPort[switchName] && devicesPerPort[switchName][port]) {
+  const devEntry = devicesPerPort[switchName][port];
+  const devList = Array.isArray(devEntry) ? devEntry : [devEntry];
+
+  devList.forEach((devType, i) => {
+    const devLabel = document.createElement("div");
+    devLabel.className = "device-link " + devType;
+    devLabel.textContent = devType.toUpperCase();
+    devLabel.style.position = "absolute";
+    devLabel.style.left = "50%";
+    devLabel.style.transform = "translateX(-50%)";
+    devLabel.style.bottom = `${-25 - i * 20}px`; // stack labels
+    portDiv.style.position = "relative";
+    portDiv.appendChild(devLabel);
+  });
+}
+      if(port % 2 === 1) {
+        topRow.appendChild(portDiv);
+      } else {
+        bottomRow.appendChild(portDiv);
+      }
+    }
+    container.appendChild(topRow);
+    container.appendChild(bottomRow);
+  }
+
+  // Initialize all switches ports
+  function initialize() {
+    currentConfigs = {};
+    for(const sw of Object.keys(clickablePorts)) {
+      createPorts(sw);
+    }
+    document.getElementById("score-display").textContent = "";
+  }
+
+  // Modal management
+  const modal = document.getElementById("config-modal");
+  const modalPortLabel = document.getElementById("modal-port-label");
+  const enableToggle = document.getElementById("enable-toggle");
+  const lacpToggle = document.getElementById("lacp-toggle");
+  const speedSelect = document.getElementById("speed-select");
+  const duplexSelect = document.getElementById("duplex-select");
+  const vlanSelect = document.getElementById("vlan-select");
+  const addVlanBtn = document.getElementById("add-vlan-btn");
+  const assignedVlansDiv = document.getElementById("assigned-vlans");
+  const saveConfigBtn = document.getElementById("save-config-btn");
+  const closeBtn = document.getElementById("config-close");
+
+  let currentEditing = null; // {switchName, port}
+
+function toggleConfigFields(isEnabled) {
+  lacpToggle.disabled = !isEnabled;
+  speedSelect.disabled = !isEnabled;
+  duplexSelect.disabled = !isEnabled;
+  vlanSelect.disabled = !isEnabled;
+  addVlanBtn.disabled = !isEnabled;
+
+  // Also disable the remove VLAN buttons
+  assignedVlansDiv.querySelectorAll("button").forEach(btn => {
+    btn.disabled = !isEnabled;
+  });
+}
+
+  // Show modal and load current config
+  function openModal(switchName, portNum) {
+    currentEditing = {switchName, portNum};
+    modalPortLabel.textContent = `Switch ${switchName.replace("switch","")} Port ${portNum} Configuration`;
+
+    const cfg = currentConfigs[switchName][portNum];
+
+    enableToggle.checked = cfg.enabled;
+    lacpToggle.checked = cfg.lacp;
+    speedSelect.value = cfg.speed;
+    duplexSelect.value = cfg.duplex;
+
+    renderVlans(cfg.vlans);
+
+ toggleConfigFields(cfg.enabled);
+
+    modal.style.display = "block";
+  }
+
+enableToggle.addEventListener("change", () => {
+  toggleConfigFields(enableToggle.checked);
+
+  if (!enableToggle.checked) {
+    // Clear other config settings
+    lacpToggle.checked = false;
+    speedSelect.value = "auto";
+    duplexSelect.value = "auto";
+    currentConfigs[currentEditing.switchName][currentEditing.portNum].vlans = [];
+    renderVlans([]);
+  }
+});
+
+  // Render VLAN chips in modal
+  function renderVlans(vlans) {
+    assignedVlansDiv.innerHTML = "";
+    vlans.forEach(vlan => {
+      const chip = document.createElement("div");
+      chip.className = "vlan-chip";
+      chip.textContent = `VLAN ${vlan} (${VLANS[vlan] || "Unknown"})`;
+      const removeBtn = document.createElement("button");
+      removeBtn.textContent = "×";
+      removeBtn.title = "Remove VLAN";
+      removeBtn.onclick = () => {
+        const cfg = currentConfigs[currentEditing.switchName][currentEditing.portNum];
+        cfg.vlans = cfg.vlans.filter(v => v !== vlan);
+        renderVlans(cfg.vlans);
+      };
+      chip.appendChild(removeBtn);
+      assignedVlansDiv.appendChild(chip);
+    });
+  }
+
+  // Add VLAN handler
+  addVlanBtn.addEventListener("click", e => {
+    e.preventDefault();
+    const vlanToAdd = Number(vlanSelect.value);
+    const cfg = currentConfigs[currentEditing.switchName][currentEditing.portNum];
+    if(!cfg.vlans.includes(vlanToAdd)){
+      cfg.vlans.push(vlanToAdd);
+      renderVlans(cfg.vlans);
+    }
+  });
+
+  // Save config handler
+saveConfigBtn.addEventListener("click", e => {
+  e.preventDefault();
+  if (!currentEditing) return;
+
+  const { switchName, portNum } = currentEditing;
+  const cfg = currentConfigs[switchName][portNum];
+  const enabled = enableToggle.checked;
+
+  cfg.enabled = enabled;
+
+  if (!enabled) {
+    // If port is disabled, reset all other settings
+    cfg.lacp = false;
+    cfg.speed = "auto";
+    cfg.duplex = "auto";
+    cfg.vlans = [];
+  } else {
+    cfg.lacp = lacpToggle.checked;
+    cfg.speed = speedSelect.value;
+    cfg.duplex = duplexSelect.value;
+    // VLANs are already handled by add/remove
+  }
+
+  updatePortDisplay(switchName, portNum);
+  closeModal();
+});
+
+  closeBtn.addEventListener("click", () => {
+    closeModal();
+  });
+
+  function closeModal() {
+    modal.style.display = "none";
+    currentEditing = null;
+  }
+
+  // Click handler for ports
+  function onPortClick(e) {
+    const target = e.target;
+    if(!target.classList.contains("clickable")) return;
+    const switchName = target.dataset.switch;
+    const portNum = Number(target.dataset.port);
+    openModal(switchName, portNum);
+  }
+
+  // Attach click listeners to ports dynamically
+  function attachPortListeners() {
+    document.querySelectorAll(".port.clickable").forEach(port => {
+      port.addEventListener("click", onPortClick);
+    });
+  }
+
+  // Update port's visual state after config changes
+  function updatePortDisplay(switchName, portNum) {
+    const container = document.getElementById(switchName);
+    if(!container) return;
+    const portDiv = container.querySelector(`.port[data-port='${portNum}']`);
+    if(!portDiv) return;
+    const cfg = currentConfigs[switchName][portNum];
+    if(cfg.enabled){
+      portDiv.classList.remove("disabled");
+    } else {
+      portDiv.classList.add("disabled");
+    }
+    // Remove incorrect class if any (will be added on submit if wrong)
+    portDiv.classList.remove("incorrect");
+  }
+
+  // Reset button handler
+  document.getElementById("reset-btn").addEventListener("click", () => {
+    initialize();
+    attachPortListeners();
+    document.getElementById("score-display").textContent = "";
+  });
+
+  // Submit button handler - compare current configs to correctConfigs
+  document.getElementById("submit-btn").addEventListener("click", () => {
+    let total = 0;
+    let correct = 0;
+
+    // Clear previous incorrect highlights
+    document.querySelectorAll(".port.incorrect").forEach(p => p.classList.remove("incorrect"));
+
+    for(const sw in clickablePorts) {
+      for(const port of clickablePorts[sw]) {
+        total++;
+        const current = currentConfigs[sw][port];
+        const correctCfg = correctConfigs[sw][port];
+        if(!current || !correctCfg) continue;
+
+        // Compare: enabled, lacp, speed, duplex, vlans (exact sets)
+        let matched = true;
+ // If the correct config says the port should be disabled, only check that
+if (correctCfg.enabled === false) {
+  if (current.enabled === false) {
+    matched = true; // Everything else doesn't matter
+  } else {
+    matched = false; // Should be disabled, but isn't
+  }
+} else {
+  // Fully compare everything if it's supposed to be enabled
+  if (current.enabled !== correctCfg.enabled) matched = false;
+  if (current.lacp !== correctCfg.lacp) matched = false;
+  if (current.speed !== correctCfg.speed) matched = false;
+  if (current.duplex !== correctCfg.duplex) matched = false;
+
+  // Check VLAN equality (order independent)
+  const currV = current.vlans.slice().sort();
+  const corrV = correctCfg.vlans.slice().sort();
+  if (currV.length !== corrV.length) matched = false;
+  else {
+    for (let i = 0; i < currV.length; i++) {
+      if (currV[i] !== corrV[i]) {
+        matched = false;
+        break;
+      }
+    }
+  }
+}
+        if(matched) {
+          correct++;
+        } else {
+          // Mark port as incorrect visually
+          const container = document.getElementById(sw);
+          if(container) {
+            const portDiv = container.querySelector(`.port[data-port='${port}']`);
+            if(portDiv){
+              portDiv.classList.add("incorrect");
+            }
+          }
+        }
+      }
+    }
+
+    document.getElementById("score-display").textContent = `Score: ${correct} / ${total}`;
+  });
+
+  // Initial setup
+  initialize();
+  attachPortListeners();
+
+  // Clicking outside modal closes modal
+  window.addEventListener("click", e => {
+    if(e.target === modal) {
+      closeModal();
+    }
+  });
+// Add cable drawing function here
+function drawCable(fromId, toId) {
+  const from = document.getElementById(fromId);
+  const to = document.getElementById(toId);
+  if (!from || !to) return;
+
+  const svg = document.getElementById('cableLines');
+  const fromRect = from.getBoundingClientRect();
+  const toRect = to.getBoundingClientRect();
+  const svgRect = svg.getBoundingClientRect();
+
+  const x1 = fromRect.left + fromRect.width / 2 - svgRect.left;
+  const y1 = fromRect.top + fromRect.height / 2 - svgRect.top;
+  const x2 = toRect.left + toRect.width / 2 - svgRect.left;
+  const y2 = toRect.top + toRect.height / 2 - svgRect.top;
+
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line.setAttribute("x1", x1);
+  line.setAttribute("y1", y1);
+  line.setAttribute("x2", x2);
+  line.setAttribute("y2", y2);
+  line.classList.add("animated-cable");
+  svg.appendChild(line);
+}
+
+function drawAllCables() {
+  const svg = document.getElementById('cableLines');
+  if (!svg) return;
+  svg.innerHTML = "";
+
+  drawCable("switch1-port-2", "switch2-port-1");
+  drawCable("switch1-port-4", "switch2-port-3");
+  drawCable("switch2-port-37", "switch3-port-1");
+  drawCable("switch2-port-39", "switch3-port-2");
+  drawCable("switch2-port-47", "switch4-port-1");
+  drawCable("switch2-port-48", "switch4-port-2");
+}
+
+// Delay draw slightly after layout finishes
+function safeDrawCables() {
+  // Wait for two animation frames and 100ms to let DOM settle
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      setTimeout(drawAllCables, 100);
+    });
+  });
+}
+
+window.addEventListener("load", safeDrawCables);
+window.addEventListener("resize", () => {
+  clearTimeout(window._redrawTimer);
+  window._redrawTimer = setTimeout(safeDrawCables, 300);
+});
+})();
+</script>
+
+</body>
+</html>
