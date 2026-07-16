@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Network+ Simulation Lab</title>
+<style>
+:root{
+  --sky:#38bdf8;
+  --sky-dark:#0284c7;
+  --sky-deep:#0369a1;
+  --bg:#eaf6ff;
+  --card:#ffffff;
+  --text:#0f172a;
+  --muted:#5b7186;
+  --border:#d6ecfb;
+  --good:#16a34a;
+  --good-bg:rgba(22,163,74,0.12);
+  --progress-bg:rgba(3,105,161,0.1);
+}
+*{box-sizing:border-box}
+body{
+  font-family:"Segoe UI",Inter,Arial,sans-serif;
+  margin:0;
+  min-height:100vh;
+  background:linear-gradient(180deg,#bfe9ff 0%,var(--bg) 320px, var(--bg) 100%);
+  color:var(--text);
+}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 20px 60px}
+.hero{
+  background:linear-gradient(135deg,var(--sky) 0%,var(--sky-dark) 100%);
+  color:#fff;
+  border-radius:18px;
+  padding:26px 28px;
+  box-shadow:0 12px 30px rgba(3,105,161,0.25);
+  margin-bottom:18px;
+}
+h1{margin:0 0 6px 0;font-size:26px}
+.sub{color:rgba(255,255,255,0.92);font-size:14.5px;margin:0;line-height:1.5}
+.disclaimer{
+  background:rgba(3,41,64,0.9);
+  color:#f0f9ff;
+  font-size:12.5px;
+  line-height:1.5;
+  border-radius:12px;
+  padding:10px 16px;
+  margin:16px 0 22px;
+  text-align:center;
+}
+.disclaimer strong{color:#fde047}
+.progress-bar-wrap{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:16px 20px;
+  margin-bottom:22px;
+  box-shadow:0 6px 18px rgba(3,105,161,0.08);
+}
+.progress-row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.progress-label{font-weight:700;font-size:14.5px;color:var(--sky-deep)}
+.progress-track{
+  flex:1;
+  min-width:160px;
+  height:10px;
+  background:var(--progress-bg);
+  border-radius:999px;
+  overflow:hidden;
+}
+.progress-fill{
+  height:100%;
+  background:linear-gradient(90deg,var(--sky-dark),var(--good));
+  border-radius:999px;
+  transition:width .3s ease;
+  width:0%;
+}
+.progress-count{font-size:13.5px;color:var(--muted);white-space:nowrap}
+.reset-btn{
+  background:transparent;
+  border:1px solid var(--border);
+  color:var(--muted);
+  font-size:12.5px;
+  padding:6px 12px;
+  border-radius:8px;
+  cursor:pointer;
+}
+.reset-btn:hover{border-color:var(--sky-dark);color:var(--sky-deep)}
+h2{margin:0 0 4px 0;font-size:18px;color:var(--sky-deep)}
+.section-sub{color:var(--muted);font-size:13.5px;margin:0 0 14px}
+.tiles{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:16px;
+}
+.tile{
+  position:relative;
+  border-radius:18px;
+  padding:20px 18px;
+  color:#fff;
+  text-decoration:none;
+  min-height:140px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  box-shadow:0 10px 24px rgba(2,6,23,0.18);
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.tile:hover{transform:translateY(-4px);box-shadow:0 16px 32px rgba(2,6,23,0.28)}
+.tile .icon{font-size:32px;line-height:1}
+.tile .ttitle{font-size:16.5px;font-weight:800;margin-top:10px;line-height:1.25}
+.tile .tsub{font-size:12.5px;opacity:.92;margin-top:6px}
+.tile .badge{
+  position:absolute;
+  top:14px;
+  right:14px;
+  font-size:11px;
+  font-weight:700;
+  padding:3px 9px;
+  border-radius:999px;
+  background:rgba(255,255,255,0.22);
+  backdrop-filter:blur(2px);
+}
+.tile .badge.completed{background:#fff;color:var(--good)}
+.tile.lightning{background:linear-gradient(135deg,#a78bfa,#4c1d95)}
+.tile.fire{background:linear-gradient(135deg,#fb923c,#dc2626)}
+.tile.storm{background:linear-gradient(135deg,#475569,#1e293b)}
+.tile.sun{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#4a2c00}
+.tile.sun .tsub{color:#5c3a00}
+.tile.sun .badge{background:rgba(0,0,0,0.15);color:#4a2c00}
+.tile.sun .badge.completed{background:#fff;color:#166534}
+.tile.green{background:linear-gradient(135deg,#34d399,#059669)}
+.refs{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:16px 20px;
+  margin-top:26px;
+}
+.refs ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px 16px}
+.refs li a{color:var(--sky-deep);text-decoration:none;font-size:13.5px}
+.refs li a:hover{text-decoration:underline}
+footer{
+  text-align:center;
+  color:var(--muted);
+  font-size:12px;
+  margin-top:32px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <h1>Network+ Simulation Lab</h1>
+    <p class="sub">Interactive, performance-based practice simulations (PBQs) covering CompTIA Network+ scenarios &mdash; device placement, routing, switching, STP, and troubleshooting labs.</p>
+  </div>
+
+  <div class="disclaimer"><strong>Educational use only.</strong> This site is a self-study practice tool built from original simulation exercises. It is not affiliated with, endorsed by, or sponsored by CompTIA&reg;. CompTIA and Network+ are trademarks of CompTIA, Inc. Always confirm current exam content on comptia.org.</div>
+
+  <div class="progress-bar-wrap">
+    <div class="progress-row">
+      <span class="progress-label">Your progress</span>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <span class="progress-count" id="progressCount">0 of 14 completed</span>
+      <button class="reset-btn" id="resetBtn">Reset progress</button>
+    </div>
+  </div>
+
+  <h2>Simulations</h2>
+  <p class="section-sub">Click a tile to open that simulation. Each one opens in this same tab with a "Back to Dashboard" link at the top, so you can leave and come back anytime &mdash; your completed simulations stay marked on this page.</p>
+  <div class="tiles" id="tiles"></div>
+
+  <div class="refs">
+    <h2>Reference Materials</h2>
+    <p class="section-sub">Answer keys and supporting documents.</p>
+    <ul>
+      <li><a href="Network_Routing_PBQ_Answer_Key_Explained.pdf">Network Routing PBQ &mdash; Answer Key (PDF)</a></li>
+      <li><a href="Switch_Port_Configuration_PBQ_Answer_Key_Explained.pdf">Switch Port Configuration &mdash; Answer Key (PDF)</a></li>
+      <li><a href="STP_PBQ_Cheat_Sheet.pdf">STP PBQ Cheat Sheet (PDF)</a></li>
+      <li><a href="Device%20Placement%20%26%20Configuration/Device_Placement_Configuration_PBQ_Answer_Key_UPDATED.pdf">Device Placement &amp; Configuration &mdash; Answer Key (PDF)</a></li>
+      <li><a href="Network%20Performance%20Simulation/network_performance_revised_answer_key.pdf">Network Performance &mdash; Answer Key (PDF)</a></li>
+      <li><a href="Network%20Routing%20Simulation/network_routing_revised_answer_key.pdf">Network Routing &mdash; Answer Key (PDF)</a></li>
+      <li><a href="Network%20Troubleshooting%20Simulation/network_troubleshooting_revised_answer_key.pdf">Network Troubleshooting &mdash; Answer Key (PDF)</a></li>
+      <li><a href="STP%20Troubleshooting%20Simulation/STP%20Troubleshooting/Instructor_%20STP%20Troubleshooting%20Simulation%20Live%20Demo.pdf">STP Troubleshooting &mdash; Instructor Guide (PDF)</a></li>
+      <li><a href="STP%20Troubleshooting%20Simulation/STP%20Troubleshooting/Student%20Guide_%20STP%20Troubleshooting%20Simulation.pdf">STP Troubleshooting &mdash; Student Guide (PDF)</a></li>
+      <li><a href="VLSM-CIDR%20Exercise%20Answer%20Key.htm">VLSM-CIDR Exercise &mdash; Answer Key</a></li>
+      <li><a href="Network%2B%20Sim%20explanations.docx">Network+ Sim Explanations (DOCX)</a></li>
+      <li><a href="Addressing%20Answers.txt">Addressing Answers (TXT)</a></li>
+      <li><a href="Practice%20PBQ%20Network%2B.pkt">Practice PBQ (Packet Tracer)</a></li>
+    </ul>
+  </div>
+
+  <footer>Network+ Simulation Lab &middot; For educational practice purposes only &middot; Not affiliated with CompTIA</footer>
+</div>
+
+<script>
+const SIMS = [
+  { id:"device-placement", href:"Device Placement & Configuration/Device Placement & Configuration.html", theme:"lightning", icon:"🖥️", title:"Device Placement & Configuration", sub:"Plan device placement on a building layout" },
+  { id:"network-performance", href:"Network Performance Simulation/Network_Performance_Simulation_embedded_complete.html", theme:"fire", icon:"📈", title:"Network Performance Simulation", sub:"Diagnose network performance bottlenecks" },
+  { id:"network-routing-sim", href:"Network Routing Simulation/Network Routing Simulation.html", theme:"storm", icon:"🛣️", title:"Network Routing Simulation", sub:"Configure routing between networks" },
+  { id:"network-troubleshooting", href:"Network Troubleshooting Simulation/Network Troubleshooting Simulation.html", theme:"sun", icon:"🛠️", title:"Network Troubleshooting Simulation", sub:"Troubleshoot a broken network topology" },
+  { id:"stp-troubleshooting-sim", href:"STP Troubleshooting Simulation/STP Troubleshooting/STP Troubleshooting Sim.html", theme:"green", icon:"🌲", title:"STP Troubleshooting Simulation", sub:"Resolve a Spanning Tree Protocol issue" },
+  { id:"raid-config", href:"STP Troubleshooting Simulation/RAIDConfig.html", theme:"lightning", icon:"💾", title:"RAID Configuration", sub:"Configure a RAID array" },
+  { id:"raid-troubleshooting", href:"STP Troubleshooting Simulation/RAIDTroubleshooting.html", theme:"fire", icon:"🧩", title:"RAID Troubleshooting", sub:"Diagnose a failed RAID array" },
+  { id:"firewall-acl", href:"Firewall ACL Analysis.html", theme:"storm", icon:"🧱", title:"Firewall ACL Analysis", sub:"Analyze and correct firewall ACL rules" },
+  { id:"network-routing-pbq", href:"Network Routing PBQ.html", theme:"sun", icon:"🧭", title:"Network Routing PBQ", sub:"Practice routing performance-based questions" },
+  { id:"routing-table-troubleshooting", href:"Routing Table Troubleshooting Simulation.html", theme:"green", icon:"📋", title:"Routing Table Troubleshooting", sub:"Fix a broken routing table" },
+  { id:"stp-switches", href:"STP Switches.html", theme:"lightning", icon:"🔌", title:"STP Switches", sub:"Configure switches for Spanning Tree" },
+  { id:"switch-cli-analysis", href:"Switch CLI Output Analysis.html", theme:"fire", icon:"💻", title:"Switch CLI Output Analysis", sub:"Interpret switch CLI output" },
+  { id:"switch-port-config", href:"Switch Port Configuration.html", theme:"storm", icon:"🔧", title:"Switch Port Configuration", sub:"Configure and verify switch ports" },
+  { id:"vlsm-cidr", href:"VLSM-CIDR Exercise.html", theme:"sun", icon:"➗", title:"VLSM-CIDR Exercise", sub:"Practice subnetting with VLSM/CIDR" },
+];
+
+const KEY = "simhub_progress_networksims";
+function loadProgress(){
+  try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ return {}; }
+}
+function saveProgress(p){ localStorage.setItem(KEY, JSON.stringify(p)); }
+
+function render(){
+  const progress = loadProgress();
+  const tilesEl = document.getElementById("tiles");
+  tilesEl.innerHTML = "";
+  let completedCount = 0;
+
+  SIMS.forEach(sim => {
+    const state = progress[sim.id];
+    const status = state ? state.status : "not-started";
+    if (status === "completed") completedCount++;
+
+    const a = document.createElement("a");
+    a.href = sim.href;
+    a.className = `tile ${sim.theme}`;
+
+    let badgeHtml = "";
+    if (status === "completed") badgeHtml = `<span class="badge completed">✓ Completed</span>`;
+    else if (status === "in-progress") badgeHtml = `<span class="badge">In progress</span>`;
+
+    a.innerHTML = `
+      ${badgeHtml}
+      <div class="icon">${sim.icon}</div>
+      <div>
+        <div class="ttitle">${sim.title}</div>
+        <div class="tsub">${sim.sub}</div>
+      </div>
+    `;
+    tilesEl.appendChild(a);
+  });
+
+  const pct = Math.round((completedCount / SIMS.length) * 100);
+  document.getElementById("progressFill").style.width = pct + "%";
+  document.getElementById("progressCount").textContent = `${completedCount} of ${SIMS.length} completed`;
+}
+
+document.getElementById("resetBtn").addEventListener("click", () => {
+  if (confirm("Reset all simulation progress on this device?")) {
+    saveProgress({});
+    render();
+  }
+});
+
+render();
+</script>
+</body>
+</html>
