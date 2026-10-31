@@ -4,15 +4,19 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Network+ Simulation Lab</title>
+<script>
+  /* Easier reading: on stays on, across pages, visits and the program's other sites. Set before the page paints. */
+  try { if (localStorage.getItem("cwp-easier-reading") === "1") document.documentElement.classList.add("easier"); } catch (e) {}
+</script>
 <style>
 :root{
   --sky:#38bdf8;
   --sky-dark:#0284c7;
-  --sky-deep:#0369a1;
+  --sky-deep:#0c4a6e;
   --bg:#eaf6ff;
   --card:#ffffff;
   --text:#0f172a;
-  --muted:#5b7186;
+  --muted:#334155;
   --border:#d6ecfb;
   --good:#16a34a;
   --good-bg:rgba(22,163,74,0.12);
@@ -28,7 +32,7 @@ body{
 }
 .wrap{max-width:1080px;margin:0 auto;padding:28px 20px 60px}
 .hero{
-  background:linear-gradient(135deg,var(--sky) 0%,var(--sky-dark) 100%);
+  background:linear-gradient(135deg,#075985 0%,#0c4a6e 100%);
   color:#fff;
   border-radius:18px;
   padding:26px 28px;
@@ -36,7 +40,7 @@ body{
   margin-bottom:18px;
 }
 h1{margin:0 0 6px 0;font-size:26px}
-.sub{color:rgba(255,255,255,0.92);font-size:14.5px;margin:0;line-height:1.5}
+.sub{color:#fff;font-size:14.5px;margin:0;line-height:1.5}
 .disclaimer{
   background:rgba(3,41,64,0.9);
   color:#f0f9ff;
@@ -76,9 +80,9 @@ h1{margin:0 0 6px 0;font-size:26px}
 .progress-count{font-size:13.5px;color:var(--muted);white-space:nowrap}
 .reset-btn{
   background:transparent;
-  border:1px solid var(--border);
+  border:1px solid #64748b;
   color:var(--muted);
-  font-size:12.5px;
+  font-size:13.5px;
   padding:6px 12px;
   border-radius:8px;
   cursor:pointer;
@@ -107,7 +111,7 @@ h2{margin:0 0 4px 0;font-size:18px;color:var(--sky-deep)}
 .tile:hover{transform:translateY(-4px);box-shadow:0 16px 32px rgba(2,6,23,0.28)}
 .tile .icon{font-size:32px;line-height:1}
 .tile .ttitle{font-size:16.5px;font-weight:800;margin-top:10px;line-height:1.25}
-.tile .tsub{font-size:12.5px;opacity:.92;margin-top:6px}
+.tile .tsub{font-size:13px;margin-top:6px}
 .tile .badge{
   position:absolute;
   top:14px;
@@ -116,18 +120,22 @@ h2{margin:0 0 4px 0;font-size:18px;color:var(--sky-deep)}
   font-weight:700;
   padding:3px 9px;
   border-radius:999px;
-  background:rgba(255,255,255,0.22);
-  backdrop-filter:blur(2px);
+  background:rgba(0,0,0,0.32);
+  color:#fff;
 }
-.tile .badge.completed{background:#fff;color:var(--good)}
-.tile.lightning{background:linear-gradient(135deg,#a78bfa,#4c1d95)}
-.tile.fire{background:linear-gradient(135deg,#fb923c,#dc2626)}
-.tile.storm{background:linear-gradient(135deg,#475569,#1e293b)}
-.tile.sun{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#4a2c00}
-.tile.sun .tsub{color:#5c3a00}
-.tile.sun .badge{background:rgba(0,0,0,0.15);color:#4a2c00}
+.tile .badge.completed{background:#fff;color:#166534}
+/* AAA (31 October 2026): the tile colours approved on the Network+ test bank, each its own hue, deep enough
+   for white lettering over 7:1 (the sun tile's dark lettering likewise); the badges sit on a darker backing. */
+.tile.lightning{background:linear-gradient(160deg,#4c1d95 0%,#1e1b4b 100%)}
+.tile.fire{background:linear-gradient(160deg,#973400 0%,#7c2d12 100%)}
+.tile.storm{background:linear-gradient(160deg,#475569 0%,#1e293b 100%)}
+.tile.sun{background:linear-gradient(160deg,#fbbf24 0%,#f59e0b 100%);color:#2a1000}
+.tile.sun .tsub{color:#2a1000}
+.tile.sun .badge{background:rgba(255,255,255,0.55);color:#2a1000}
 .tile.sun .badge.completed{background:#fff;color:#166534}
-.tile.green{background:linear-gradient(135deg,#34d399,#059669)}
+.tile.green{background:linear-gradient(160deg,#026329 0%,#064e3b 100%)}
+.tile:focus-visible,.reset-btn:focus-visible,.refs li a:focus-visible{outline:3px solid #0c4a6e;outline-offset:3px}
+.topline{display:flex;justify-content:flex-end;margin:0 0 12px}
 .refs{
   background:var(--card);
   border:1px solid var(--border);
@@ -136,18 +144,27 @@ h2{margin:0 0 4px 0;font-size:18px;color:var(--sky-deep)}
   margin-top:26px;
 }
 .refs ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px 16px}
-.refs li a{color:var(--sky-deep);text-decoration:none;font-size:13.5px}
-.refs li a:hover{text-decoration:underline}
+.refs li a{color:var(--sky-deep);text-decoration:underline;font-size:14px}
+.refs li a:hover{text-decoration-thickness:2px}
 footer{
   text-align:center;
   color:var(--muted);
-  font-size:12px;
+  font-size:13.5px;
+  line-height:1.5;
   margin-top:32px;
 }
+/* Easier reading: a plainer face, wider letter, word and line spacing, a little larger */
+html.easier body{font-family:Verdana,"DejaVu Sans",Tahoma,"Segoe UI",Arial,sans-serif;letter-spacing:.03em;word-spacing:.12em;line-height:1.7}
+html.easier button{font-family:inherit;letter-spacing:.02em}
+html.easier .sub,html.easier .section-sub,html.easier .refs li a,html.easier .progress-count{font-size:15.5px}
+html.easier .disclaimer{font-size:14.5px;text-align:left}
+html.easier .tile .tsub{font-size:14px}
+html.easier footer{font-size:14.5px;text-align:left}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="topline"><button type="button" class="reset-btn" id="easierBtn" aria-pressed="false">Easier reading: off</button></div>
   <div class="hero">
     <h1>Network+ Simulation Lab</h1>
     <p class="sub">Interactive, performance-based practice simulations (PBQs) covering CompTIA Network+ scenarios &mdash; device placement, routing, switching, STP, and troubleshooting labs.</p>
@@ -181,6 +198,7 @@ footer{
       <li><a href="Network%20Troubleshooting%20Simulation/network_troubleshooting_revised_answer_key.pdf">Network Troubleshooting &mdash; Answer Key (PDF)</a></li>
       <li><a href="STP%20Troubleshooting%20Simulation/STP%20Troubleshooting/Instructor_%20STP%20Troubleshooting%20Simulation%20Live%20Demo.pdf">STP Troubleshooting &mdash; Instructor Guide (PDF)</a></li>
       <li><a href="STP%20Troubleshooting%20Simulation/STP%20Troubleshooting/Student%20Guide_%20STP%20Troubleshooting%20Simulation.pdf">STP Troubleshooting &mdash; Student Guide (PDF)</a></li>
+      <li><a href="Device%20Info%20CLI%20Lab/Device_Info_CLI_Lab_Answer_Key_Explained.pdf">Device Info CLI Lab &mdash; Answer Key (PDF)</a></li>
       <li><a href="VLSM-CIDR%20Exercise%20Answer%20Key.htm">VLSM-CIDR Exercise &mdash; Answer Key</a></li>
       <li><a href="Network%2B%20Sim%20explanations.docx">Network+ Sim Explanations (DOCX)</a></li>
       <li><a href="Addressing%20Answers.txt">Addressing Answers (TXT)</a></li>
@@ -188,7 +206,7 @@ footer{
     </ul>
   </div>
 
-  <footer>Network+ Simulation Lab &middot; For educational practice purposes only &middot; Not affiliated with CompTIA</footer>
+  <footer>Cyber Warrior Program — built by an instructor, for students, to make certification study more interactive. For educational purposes only. Not affiliated with, endorsed by, or sponsored by CompTIA®. All trademarks belong to their respective owners.</footer>
 </div>
 
 <script>
@@ -259,6 +277,19 @@ document.getElementById("resetBtn").addEventListener("click", () => {
 });
 
 render();
+
+/* Easier reading: on stays on, across pages and visits */
+(function(){
+  const b = document.getElementById("easierBtn"), root = document.documentElement;
+  const paint = () => { const on = root.classList.contains("easier"); b.setAttribute("aria-pressed", String(on)); b.textContent = "Easier reading: " + (on ? "on" : "off"); };
+  b.addEventListener("click", () => {
+    const on = !root.classList.contains("easier");
+    root.classList.toggle("easier", on);
+    try { localStorage.setItem("cwp-easier-reading", on ? "1" : "0"); } catch (e) { /* storage off */ }
+    paint();
+  });
+  paint();
+})();
 </script>
 </body>
 </html>

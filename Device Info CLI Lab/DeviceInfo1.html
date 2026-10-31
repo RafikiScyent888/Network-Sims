@@ -4,56 +4,76 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dynamic Network Topology CLI Lab</title>
+    <script>
+        /* Easier reading: on stays on, across pages, visits and the program's other sites. Set before the page paints. */
+        try { if (localStorage.getItem("cwp-easier-reading") === "1") document.documentElement.classList.add("easier"); } catch (e) {}
+    </script>
+    <script src="../sim-common.js"></script>
+    <script>if (window.SimHub) SimHub.init('device-info-cli', 'Device Info CLI Lab', '../index.html');</script>
     <style>
         :root {
             --bg-color: #1e1e2e;
             --card-bg: #2b2b3d;
             --text-color: #cdd6f4;
+            --muted: #bac2de;
             --accent-blue: #89b4fa;
             --accent-green: #a6e3a1;
             --accent-yellow: #f9e2af;
-            --accent-red: #f38ba8;
+            --accent-red: #f7b8c8;
             --cli-bg: #11111b;
+            --line: #45475a;
         }
+
+        * { box-sizing: border-box; }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .page {
+            max-width: 932px;
+            margin: 0 auto;
+            padding: 20px 16px 32px;
         }
 
         .header-container {
             display: flex;
             flex-direction: column;
             align-items: center;
+            text-align: center;
             margin-bottom: 20px;
         }
 
         h1 {
-            margin-bottom: 5px;
+            margin: 0 0 5px;
             color: var(--accent-blue);
+            font-size: 30px;
+            line-height: 1.2;
         }
 
         p.subtitle {
-            margin-top: 0;
-            margin-bottom: 15px;
-            color: #a6adc8;
+            margin: 0 0 15px;
+            color: var(--muted);
         }
 
+        .top-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+
         .reset-btn {
-            padding: 8px 16px;
-            background-color: #45475a;
+            padding: 9px 16px;
+            background-color: var(--line);
             color: var(--accent-yellow);
             border: 1px solid var(--accent-yellow);
             border-radius: 6px;
+            font: inherit;
+            font-size: 15px;
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: background-color 0.2s, color 0.2s;
         }
 
         .reset-btn:hover {
@@ -61,11 +81,16 @@
             color: #11111b;
         }
 
-        /* Topology Area */
+        button:focus-visible, input:focus-visible {
+            outline: 3px solid var(--accent-yellow);
+            outline-offset: 3px;
+        }
+
+        /* Topology Area: drawn 900 by 420, and scales to the screen; the devices sit at the same share of the width as the lines' ends */
         .topology-container {
             position: relative;
-            width: 900px;
-            height: 380px;
+            width: 100%;
+            height: 420px;
             background-color: var(--card-bg);
             border-radius: 12px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.4);
@@ -86,6 +111,7 @@
             stroke: #585b70;
             stroke-width: 3;
             stroke-dasharray: 6;
+            vector-effect: non-scaling-stroke;
             animation: dash 30s linear infinite;
         }
 
@@ -99,20 +125,30 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            cursor: pointer;
+            transform: translateX(-50%);
             transition: transform 0.2s, filter 0.2s;
+            background: none;
+            border: 0;
+            padding: 0;
+            color: inherit;
+            font: inherit;
         }
 
-        .device:hover {
-            transform: scale(1.08);
+        button.device { cursor: pointer; }
+
+        button.device:hover {
+            transform: translateX(-50%) scale(1.08);
             filter: drop-shadow(0 0 10px var(--accent-blue));
         }
+
+        button.device:focus-visible { outline: none; }
+        button.device:focus-visible .device-icon { outline: 3px solid var(--accent-yellow); outline-offset: 4px; }
 
         .device-icon {
             width: 64px;
             height: 64px;
             border-radius: 50%;
-            background: #45475a;
+            background: var(--line);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -129,31 +165,37 @@
         .device-label {
             margin-top: 8px;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 15px;
             background: rgba(17, 17, 27, 0.8);
             padding: 2px 8px;
             border-radius: 4px;
-            border: 1px solid #45475a;
+            border: 1px solid var(--line);
+            white-space: nowrap;
         }
 
         .clickable-hint {
-            font-size: 10px;
+            margin-top: 2px;
+            font-size: 13px;
             color: var(--accent-green);
+            white-space: nowrap;
+            background: rgba(17, 17, 27, 0.9);
+            padding: 0 6px;
+            border-radius: 4px;
         }
 
-        #router { top: 30px; left: 418px; }
-        #switch { top: 160px; left: 418px; }
-        #pc1 { top: 270px; left: 100px; }
-        #pc2 { top: 270px; left: 300px; }
-        #pc3 { top: 270px; left: 500px; }
-        #pc4 { top: 270px; left: 700px; }
+        #router { top: 30px; left: 50%; }
+        #switch { top: 160px; left: 50%; }
+        #pc1 { top: 300px; left: 14.667%; }
+        #pc2 { top: 300px; left: 36.889%; }
+        #pc3 { top: 300px; left: 59.111%; }
+        #pc4 { top: 300px; left: 81.333%; }
 
         /* PC Cards Grid */
         .pc-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
             gap: 20px;
-            width: 900px;
+            width: 100%;
         }
 
         .pc-card {
@@ -164,59 +206,110 @@
             border-top: 4px solid var(--accent-blue);
         }
 
-        .pc-card h3 {
-            margin-top: 0;
-            margin-bottom: 15px;
+        .pc-card h2 {
+            margin: 0 0 15px;
+            font-size: 20px;
             color: var(--accent-yellow);
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
 
         .form-group {
             display: flex;
             flex-direction: column;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
 
         .form-group label {
-            font-size: 12px;
+            font-size: 14px;
             margin-bottom: 4px;
-            color: #a6adc8;
+            color: var(--text-color);
         }
 
         .form-group input {
             background-color: var(--cli-bg);
-            border: 1px solid #45475a;
+            border: 2px solid var(--line);
             color: var(--text-color);
             padding: 8px 10px;
             border-radius: 5px;
             font-family: monospace;
-            font-size: 13px;
+            font-size: 15px;
+            width: 100%;
         }
 
-        .form-group input:focus {
-            outline: none;
-            border-color: var(--accent-blue);
+        .form-group input:focus { border-color: var(--accent-blue); }
+
+        /* A checked field says what it is three ways: the colour, an inset rule on the left, and the words */
+        .form-group.right input { border-color: var(--accent-green); box-shadow: inset 5px 0 0 var(--accent-green); padding-left: 14px; }
+        .form-group.wrong input { border-color: var(--accent-red); box-shadow: inset 5px 0 0 var(--accent-red); padding-left: 14px; }
+
+        .fstatus {
+            margin: 4px 0 0;
+            font-size: 14px;
+            font-weight: bold;
+            min-height: 0;
+        }
+        .fstatus:empty { display: none; }
+        .form-group.right .fstatus { color: var(--accent-green); }
+        .form-group.wrong .fstatus { color: var(--accent-red); }
+        .form-group.changed .fstatus { color: var(--text-color); font-weight: normal; }
+
+        .fhint {
+            margin-top: 8px;
+            background: var(--bg-color);
+            border-left: 4px solid var(--accent-yellow);
+            border-radius: 4px;
+            padding: 8px 10px;
+            font-size: 14px;
+            color: var(--text-color);
+        }
+        .fhint p { margin: 0 0 6px; }
+        .fhint p:last-child { margin-bottom: 0; }
+        .fhint .rung { color: var(--accent-yellow); font-weight: bold; display: block; }
+        .fhint ul { margin: 4px 0 0 18px; padding: 0; }
+        .fhint li { margin: 0 0 4px; }
+        .fhint code, .result code { font-family: monospace; font-size: 14px; color: var(--accent-yellow); }
+
+        .check-row {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 4px;
         }
 
         .check-btn {
-            grid-column: span 2;
+            flex: 1 1 260px;
             padding: 12px;
             background-color: var(--accent-blue);
             color: #11111b;
             border: none;
             border-radius: 8px;
+            font: inherit;
             font-weight: bold;
-            font-size: 16px;
+            font-size: 17px;
             cursor: pointer;
-            margin-top: 10px;
             transition: background-color 0.2s;
         }
 
-        .check-btn:hover {
-            background-color: #b4befe;
+        .check-btn:hover { background-color: #b4befe; }
+        .check-row .reset-btn { flex: 0 1 auto; }
+
+        .result {
+            grid-column: 1 / -1;
+            background: var(--cli-bg);
+            border: 1px solid var(--line);
+            border-left: 6px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: 16px;
         }
+        .result:empty { display: none; }
+        .result.all-right { border-left-color: var(--accent-green); }
+        .result.some-wrong { border-left-color: var(--accent-red); }
+        .result p { margin: 0 0 6px; }
+        .result p:last-child { margin-bottom: 0; }
+        .result .lead { font-weight: bold; }
+        .result.all-right .lead { color: var(--accent-green); }
+        .result.some-wrong .lead { color: var(--accent-red); }
 
         /* Modal CLI Styling */
         .modal-overlay {
@@ -227,17 +320,20 @@
             width: 100%;
             height: 100%;
             background: rgba(0,0,0,0.7);
-            z-index: 100;
+            z-index: 1000;
             justify-content: center;
             align-items: center;
+            padding: 12px;
         }
 
         .cli-window {
             width: 650px;
-            height: 420px;
+            max-width: 100%;
+            height: 440px;
+            max-height: 88vh;
             background-color: var(--cli-bg);
             border-radius: 8px;
-            border: 1px solid #45475a;
+            border: 1px solid var(--line);
             box-shadow: 0 10px 30px rgba(0,0,0,0.8);
             display: flex;
             flex-direction: column;
@@ -254,17 +350,21 @@
         }
 
         .cli-title {
-            font-size: 13px;
+            font-size: 15px;
             font-weight: bold;
-            color: #cdd6f4;
+            color: var(--text-color);
             font-family: monospace;
+            margin: 0;
         }
 
         .close-btn {
             background: none;
-            border: none;
+            border: 1px solid transparent;
+            border-radius: 4px;
             color: var(--accent-red);
-            font-size: 18px;
+            font-size: 22px;
+            line-height: 1;
+            padding: 2px 8px;
             font-weight: bold;
             cursor: pointer;
         }
@@ -273,10 +373,10 @@
             flex: 1;
             padding: 15px;
             font-family: 'Courier New', Courier, monospace;
-            font-size: 13px;
-            color: #a6e3a1;
-            overflow-y: auto;
-            white-space: pre-wrap;
+            font-size: 14px;
+            color: var(--accent-green);
+            overflow: auto;
+            white-space: pre;
         }
 
         .cli-input-container {
@@ -289,141 +389,153 @@
         .cli-prompt {
             color: var(--accent-blue);
             font-family: monospace;
+            font-size: 15px;
             font-weight: bold;
             margin-right: 8px;
         }
 
         .cli-input {
             flex: 1;
+            min-width: 0;
             background: transparent;
             border: none;
             color: var(--text-color);
             font-family: monospace;
-            font-size: 13px;
+            font-size: 15px;
         }
 
-        .cli-input:focus {
-            outline: none;
-        }
+        .cli-input:focus { outline: none; }
+        .cli-input-container:focus-within { box-shadow: inset 0 0 0 2px var(--accent-yellow); }
 
         .allowed-commands-hint {
-            margin-top: 15px;
-            font-size: 12px;
-            color: #6c7086;
+            margin-top: 20px;
+            font-size: 15px;
+            color: var(--muted);
             text-align: center;
+        }
+        .allowed-commands-hint code { font-size: 15px; color: var(--text-color); }
+
+        footer {
+            margin-top: 28px;
+            padding-top: 14px;
+            border-top: 1px solid var(--line);
+            font-size: 14px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        /* Easier reading: a plainer face, wider letter, word and line spacing, a little larger */
+        html.easier body { font-family: Verdana, "DejaVu Sans", Tahoma, "Segoe UI", Arial, sans-serif; letter-spacing: 0.03em; word-spacing: 0.12em; line-height: 1.7; font-size: 17px; }
+        html.easier button, html.easier input { letter-spacing: 0.02em; }
+        html.easier .form-group label, html.easier .fstatus, html.easier .fhint { font-size: 16px; }
+        html.easier .form-group input { font-size: 16px; }
+        html.easier .cli-body { font-size: 15px; letter-spacing: 0; word-spacing: 0; line-height: 1.5; }
+        html.easier .device-label, html.easier .clickable-hint { letter-spacing: 0; word-spacing: 0; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .connection-line { animation: none; }
+            .device, .reset-btn, .check-btn { transition: none; }
+            button.device:hover { transform: translateX(-50%); }
         }
     </style>
 </head>
 <body>
+<main class="page">
 
     <div class="header-container">
         <h1>Interactive Network Topology Lab</h1>
-        <p class="subtitle">Click on the Router or Switch to open CLI. Type 'help' in CLI to view commands.</p>
-        <button class="reset-btn" onclick="initLab()">↻ Reset / Generate New Problem</button>
+        <p class="subtitle">Click on the Router or Switch to open its CLI. Type 'help' in the CLI to view commands.</p>
+        <div class="top-actions">
+            <button type="button" class="reset-btn" onclick="initLab()">↻ Reset / Generate New Problem</button>
+            <button type="button" class="reset-btn" id="easierBtn" aria-pressed="false">Easier reading: off</button>
+        </div>
     </div>
 
     <!-- Topology Area -->
     <div class="topology-container">
-        <svg class="connections">
+        <svg class="connections" viewBox="0 0 900 420" preserveAspectRatio="none" aria-hidden="true">
             <line x1="450" y1="62" x2="450" y2="192" class="connection-line" />
-            <line x1="450" y1="192" x2="132" y2="302" class="connection-line" />
-            <line x1="450" y1="192" x2="332" y2="302" class="connection-line" />
-            <line x1="450" y1="192" x2="532" y2="302" class="connection-line" />
-            <line x1="450" y1="192" x2="732" y2="302" class="connection-line" />
+            <line x1="450" y1="192" x2="132" y2="332" class="connection-line" />
+            <line x1="450" y1="192" x2="332" y2="332" class="connection-line" />
+            <line x1="450" y1="192" x2="532" y2="332" class="connection-line" />
+            <line x1="450" y1="192" x2="732" y2="332" class="connection-line" />
         </svg>
 
         <!-- Router -->
-        <div class="device" id="router" onclick="openCLI('Router')">
-            <div class="device-icon">
-                <svg viewBox="0 0 24 24"><path d="M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M12,5C15.03,5 17.5,6.08 17.5,7C17.5,7.92 15.03,9 12,9C8.97,9 6.5,7.92 6.5,7C6.5,6.08 8.97,5 12,5M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,10.2 17.5,11.5 12,11.5C6.5,11.5 4,10.2 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,15.2 17.5,16.5 12,16.5C6.5,16.5 4,15.2 4,14Z"/></svg>
-            </div>
+        <button type="button" class="device" id="router" onclick="openCLI('Router', this)" aria-label="Router0: open its command line">
+            <span class="device-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M12,5C15.03,5 17.5,6.08 17.5,7C17.5,7.92 15.03,9 12,9C8.97,9 6.5,7.92 6.5,7C6.5,6.08 8.97,5 12,5M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,10.2 17.5,11.5 12,11.5C6.5,11.5 4,10.2 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,15.2 17.5,16.5 12,16.5C6.5,16.5 4,15.2 4,14Z"/></svg>
+            </span>
             <span class="device-label">Router0</span>
             <span class="clickable-hint">(Click CLI)</span>
-        </div>
+        </button>
 
         <!-- Switch -->
-        <div class="device" id="switch" onclick="openCLI('Switch')">
-            <div class="device-icon">
-                <svg viewBox="0 0 24 24"><path d="M4,6H20A2,2 0 0,1 22,8V16A2,2 0 0,1 20,18H4A2,2 0 0,1 2,16V8A2,2 0 0,1 4,6M4,9V11H6V9H4M8,9V11H10V9H8M12,9V11H14V9H12M16,9V11H18V9H16M4,13V15H6V13H4M8,13V15H10V13H8M12,13V15H14V13H12M16,13V15H18V13H16Z"/></svg>
-            </div>
+        <button type="button" class="device" id="switch" onclick="openCLI('Switch', this)" aria-label="Switch0: open its command line">
+            <span class="device-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4,6H20A2,2 0 0,1 22,8V16A2,2 0 0,1 20,18H4A2,2 0 0,1 2,16V8A2,2 0 0,1 4,6M4,9V11H6V9H4M8,9V11H10V9H8M12,9V11H14V9H12M16,9V11H18V9H16M4,13V15H6V13H4M8,13V15H10V13H8M12,13V15H14V13H12M16,13V15H18V13H16Z"/></svg>
+            </span>
             <span class="device-label">Switch0</span>
             <span class="clickable-hint">(Click CLI)</span>
-        </div>
+        </button>
 
         <!-- PCs -->
-        <div class="device" id="pc1"><div class="device-icon"><svg viewBox="0 0 24 24"><path d="M4,2H20A2,2 0 0,1 22,4V14A2,2 0 0,1 20,16H14V18H16A1,1 0 0,1 17,19V20H7V19A1,1 0 0,1 8,18H10V16H4A2,2 0 0,1 2,14V4A2,2 0 0,1 4,2M4,4V14H20V4H4Z"/></svg></div><span class="device-label">PC1</span></div>
-        <div class="device" id="pc2"><div class="device-icon"><svg viewBox="0 0 24 24"><path d="M4,2H20A2,2 0 0,1 22,4V14A2,2 0 0,1 20,16H14V18H16A1,1 0 0,1 17,19V20H7V19A1,1 0 0,1 8,18H10V16H4A2,2 0 0,1 2,14V4A2,2 0 0,1 4,2M4,4V14H20V4H4Z"/></svg></div><span class="device-label">PC2</span></div>
-        <div class="device" id="pc3"><div class="device-icon"><svg viewBox="0 0 24 24"><path d="M4,2H20A2,2 0 0,1 22,4V14A2,2 0 0,1 20,16H14V18H16A1,1 0 0,1 17,19V20H7V19A1,1 0 0,1 8,18H10V16H4A2,2 0 0,1 2,14V4A2,2 0 0,1 4,2M4,4V14H20V4H4Z"/></svg></div><span class="device-label">PC3</span></div>
-        <div class="device" id="pc4"><div class="device-icon"><svg viewBox="0 0 24 24"><path d="M4,2H20A2,2 0 0,1 22,4V14A2,2 0 0,1 20,16H14V18H16A1,1 0 0,1 17,19V20H7V19A1,1 0 0,1 8,18H10V16H4A2,2 0 0,1 2,14V4A2,2 0 0,1 4,2M4,4V14H20V4H4Z"/></svg></div><span class="device-label">PC4</span></div>
+        <div class="device" id="pc1"><div class="device-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4,2H20A2,2 0 0,1 22,4V14A2,2 0 0,1 20,16H14V18H16A1,1 0 0,1 17,19V20H7V19A1,1 0 0,1 8,18H10V16H4A2,2 0 0,1 2,14V4A2,2 0 0,1 4,2M4,4V14H20V4H4Z"/></svg></div><span class="device-label">PC1</span></div>
+        <div class="device" id="pc2"><div class="device-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4,2H20A2,2 0 0,1 22,4V14A2,2 0 0,1 20,16H14V18H16A1,1 0 0,1 17,19V20H7V19A1,1 0 0,1 8,18H10V16H4A2,2 0 0,1 2,14V4A2,2 0 0,1 4,2M4,4V14H20V4H4Z"/></svg></div><span class="device-label">PC2</span></div>
+        <div class="device" id="pc3"><div class="device-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4,2H20A2,2 0 0,1 22,4V14A2,2 0 0,1 20,16H14V18H16A1,1 0 0,1 17,19V20H7V19A1,1 0 0,1 8,18H10V16H4A2,2 0 0,1 2,14V4A2,2 0 0,1 4,2M4,4V14H20V4H4Z"/></svg></div><span class="device-label">PC3</span></div>
+        <div class="device" id="pc4"><div class="device-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4,2H20A2,2 0 0,1 22,4V14A2,2 0 0,1 20,16H14V18H16A1,1 0 0,1 17,19V20H7V19A1,1 0 0,1 8,18H10V16H4A2,2 0 0,1 2,14V4A2,2 0 0,1 4,2M4,4V14H20V4H4Z"/></svg></div><span class="device-label">PC4</span></div>
     </div>
 
-    <!-- Fillable PC Information Section -->
-    <div class="pc-grid">
-        <div class="pc-card">
-            <h3>PC1 Configuration</h3>
-            <div class="form-group"><label>MAC Address</label><input type="text" id="pc1-mac"></div>
-            <div class="form-group"><label>Interfaces</label><input type="text" id="pc1-interface"></div>
-            <div class="form-group"><label>Vlan #</label><input type="text" id="pc1-vlan-num"></div>
-            <div class="form-group"><label>Vlan Name</label><input type="text" id="pc1-vlan-name"></div>
-            <div class="form-group"><label>IP Address</label><input type="text" id="pc1-ip"></div>
+    <!-- Fillable PC Information Section (the cards are built by buildCards) -->
+    <div class="pc-grid" id="pcGrid">
+        <div class="check-row" id="checkRow">
+            <button type="button" class="check-btn" onclick="validateForm()">Check Answers</button>
+            <button type="button" class="reset-btn" id="clearWrongBtn" onclick="clearWrong()">Clear wrong answers</button>
         </div>
-
-        <div class="pc-card">
-            <h3>PC2 Configuration</h3>
-            <div class="form-group"><label>MAC Address</label><input type="text" id="pc2-mac"></div>
-            <div class="form-group"><label>Interfaces</label><input type="text" id="pc2-interface"></div>
-            <div class="form-group"><label>Vlan #</label><input type="text" id="pc2-vlan-num"></div>
-            <div class="form-group"><label>Vlan Name</label><input type="text" id="pc2-vlan-name"></div>
-            <div class="form-group"><label>IP Address</label><input type="text" id="pc2-ip"></div>
-        </div>
-
-        <div class="pc-card">
-            <h3>PC3 Configuration</h3>
-            <div class="form-group"><label>MAC Address</label><input type="text" id="pc3-mac"></div>
-            <div class="form-group"><label>Interfaces</label><input type="text" id="pc3-interface"></div>
-            <div class="form-group"><label>Vlan #</label><input type="text" id="pc3-vlan-num"></div>
-            <div class="form-group"><label>Vlan Name</label><input type="text" id="pc3-vlan-name"></div>
-            <div class="form-group"><label>IP Address</label><input type="text" id="pc3-ip"></div>
-        </div>
-
-        <div class="pc-card">
-            <h3>PC4 Configuration</h3>
-            <div class="form-group"><label>MAC Address</label><input type="text" id="pc4-mac"></div>
-            <div class="form-group"><label>Interfaces</label><input type="text" id="pc4-interface"></div>
-            <div class="form-group"><label>Vlan #</label><input type="text" id="pc4-vlan-num"></div>
-            <div class="form-group"><label>Vlan Name</label><input type="text" id="pc4-vlan-name"></div>
-            <div class="form-group"><label>IP Address</label><input type="text" id="pc4-ip"></div>
-        </div>
-
-        <button class="check-btn" onclick="validateForm()">Check Answers</button>
+        <div class="result" id="result" role="status" aria-live="polite"></div>
     </div>
 
     <div class="allowed-commands-hint">
         <strong>Supported Commands:</strong> <code>help</code> | <code>show vlan</code> | <code>show interface</code> | <code>show mac-address-table</code> | <code>show ip arp</code>
     </div>
 
+    <footer>Cyber Warrior Program — built by an instructor, for students, to make certification study more interactive. For educational purposes only. Not affiliated with, endorsed by, or sponsored by CompTIA®. All trademarks belong to their respective owners.</footer>
+</main>
+
     <!-- CLI Modal -->
     <div class="modal-overlay" id="cliModal">
-        <div class="cli-window">
+        <div class="cli-window" role="dialog" aria-modal="true" aria-labelledby="cliTitle">
             <div class="cli-header">
-                <span class="cli-title" id="cliTitle">Device_CLI</span>
-                <button class="close-btn" onclick="closeCLI()">&times;</button>
+                <h2 class="cli-title" id="cliTitle">Device_CLI</h2>
+                <button type="button" class="close-btn" onclick="closeCLI()" aria-label="Close the command line">&times;</button>
             </div>
-            <div class="cli-body" id="cliOutput"></div>
+            <div class="cli-body" id="cliOutput" tabindex="0" aria-label="Command output"></div>
             <div class="cli-input-container">
                 <span class="cli-prompt" id="cliPrompt">Device#</span>
-                <input type="text" class="cli-input" id="cliInput" autofocus onkeydown="handleCommand(event)">
+                <input type="text" class="cli-input" id="cliInput" aria-label="Command" autocomplete="off" autocapitalize="off" spellcheck="false" onkeydown="handleCommand(event)">
             </div>
         </div>
     </div>
 
     <script>
         let currentDevice = '';
+        let cliOpener = null;
         let correctAnswers = {};
         let networkData = {};
         let cliHistory = {};
+        let fieldState = {};   // { "pc1-mac": "right" | "wrong" | "changed" | "" }
+        let wrongTries = {};   // wrong checks per field (an empty field isn't a try); never reset by Clear
+        let narrowPick = {};   // per field, which wrong value rung 3 leaves standing, and the order the two are shown in
 
-        const helpText = 
+        const FIELDS = [
+            { key: "mac", id: "mac", label: "MAC Address" },
+            { key: "interface", id: "interface", label: "Interfaces" },
+            { key: "vlanNum", id: "vlan-num", label: "Vlan #" },
+            { key: "vlanName", id: "vlan-name", label: "Vlan Name" },
+            { key: "ip", id: "ip", label: "IP Address" }
+        ];
+
+        const helpText =
 `EXEC Commands:
   help                     Display this help manual
   show vlan                Display VLAN information
@@ -440,6 +552,31 @@
             { num: "50", name: "Marketing" },
             { num: "60", name: "IT_Support" }
         ];
+
+        // Hints: nothing for wrong tries 1 and 2; where to look at 3; the principle at 4; from 5 on, two left with a reason
+        // for every value struck. No hint ever names the answer.
+        const HINTS = {
+            mac: [
+                "Look on Switch0: <code>show mac-address-table</code>, on this PC's port.",
+                "A switch learns each device's MAC address on the port that device is plugged into. The \"address is 000a…\" line in <code>show interface</code> is the switch port's own MAC, not the PC's."
+            ],
+            interface: [
+                "Look on Switch0: <code>show interface</code>. Each port has a line saying what it links to.",
+                "The port a PC is cabled to is the one whose description names that PC. Type it the short way, as the MAC table shows it (Fa0/n), or the long way (FastEthernet0/n)."
+            ],
+            vlanNum: [
+                "Look on Switch0: the Vlan column of <code>show mac-address-table</code>, or the Ports column of <code>show vlan</code>.",
+                "An access port belongs to exactly one VLAN, so a PC is in the VLAN of the port it is plugged into."
+            ],
+            vlanName: [
+                "Look on Switch0: <code>show vlan</code>, the Name column.",
+                "Each VLAN number has one name. Find this PC's VLAN number first, then read the name beside it, spelled as shown."
+            ],
+            ip: [
+                "Look on Router0: <code>show ip arp</code>. Find this PC's MAC address in the Hardware Addr column.",
+                "ARP pairs an IP address with a MAC address. The router learns each PC's address on the subinterface for that PC's VLAN, so the Interface column ends in the PC's VLAN number."
+            ]
+        };
 
         function getRandomInt(min, max) {
             return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -460,6 +597,35 @@
                 [arr[i], arr[j]] = [arr[j], arr[i]];
             }
             return arr;
+        }
+
+        function esc(s) {
+            return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+
+        function buildCards() {
+            const grid = document.getElementById('pcGrid');
+            const before = document.getElementById('checkRow');
+            for (let i = 1; i <= 4; i++) {
+                const card = document.createElement('div');
+                card.className = 'pc-card';
+                let html = `<h2>PC${i} Configuration</h2>`;
+                FIELDS.forEach(f => {
+                    const fid = `pc${i}-${f.id}`;
+                    html += `<div class="form-group" id="g-${fid}">
+                        <label for="${fid}">${f.label}</label>
+                        <input type="text" id="${fid}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="${fid}-status ${fid}-hint">
+                        <p class="fstatus" id="${fid}-status"></p>
+                        <div class="fhint" id="${fid}-hint" hidden></div>
+                    </div>`;
+                });
+                card.innerHTML = html;
+                grid.insertBefore(card, before);
+            }
+            grid.addEventListener('input', e => {
+                const fid = e.target && e.target.id;
+                if (fieldState[fid] === 'right' || fieldState[fid] === 'wrong') { fieldState[fid] = 'changed'; paintField(fid); }
+            });
         }
 
         function initLab() {
@@ -487,39 +653,15 @@
             const host3 = getRandomInt(10, 50);
             const host4 = getRandomInt(51, 99);
 
+            // Four different MAC addresses
+            const macs = [];
+            while (macs.length < 4) { const m = generateRandomMac(); if (!macs.includes(m)) macs.push(m); }
+
             correctAnswers = {
-                pc1: {
-                    name: "PC1",
-                    mac: generateRandomMac(),
-                    interface: ports[0],
-                    vlanNum: vlan1.num,
-                    vlanName: vlan1.name,
-                    ip: `192.168.${subnet1}.${host1}`
-                },
-                pc2: {
-                    name: "PC2",
-                    mac: generateRandomMac(),
-                    interface: ports[1],
-                    vlanNum: vlan1.num,
-                    vlanName: vlan1.name,
-                    ip: `192.168.${subnet1}.${host2}`
-                },
-                pc3: {
-                    name: "PC3",
-                    mac: generateRandomMac(),
-                    interface: ports[2],
-                    vlanNum: vlan2.num,
-                    vlanName: vlan2.name,
-                    ip: `192.168.${subnet2}.${host3}`
-                },
-                pc4: {
-                    name: "PC4",
-                    mac: generateRandomMac(),
-                    interface: ports[3],
-                    vlanNum: vlan2.num,
-                    vlanName: vlan2.name,
-                    ip: `192.168.${subnet2}.${host4}`
-                }
+                pc1: { name: "PC1", mac: macs[0], interface: ports[0], vlanNum: vlan1.num, vlanName: vlan1.name, ip: `192.168.${subnet1}.${host1}` },
+                pc2: { name: "PC2", mac: macs[1], interface: ports[1], vlanNum: vlan1.num, vlanName: vlan1.name, ip: `192.168.${subnet1}.${host2}` },
+                pc3: { name: "PC3", mac: macs[2], interface: ports[2], vlanNum: vlan2.num, vlanName: vlan2.name, ip: `192.168.${subnet2}.${host3}` },
+                pc4: { name: "PC4", mac: macs[3], interface: ports[3], vlanNum: vlan2.num, vlanName: vlan2.name, ip: `192.168.${subnet2}.${host4}` }
             };
 
             // Build dynamic CLI texts
@@ -529,32 +671,32 @@
             const vlan1Ports = pcsList.filter(p => p.vlanNum === vlan1.num).map(p => p.interface).join(", ");
             const vlan2Ports = pcsList.filter(p => p.vlanNum === vlan2.num).map(p => p.interface).join(", ");
 
-            const switchVlan = 
+            const switchVlan =
 `VLAN Name                             Status    Ports
 ---- -------------------------------- --------- -------------------------------
 1    default                          active    Fa0/5, Fa0/6, Gig0/1
 ${vlan2.num.padEnd(4)} ${vlan2.name.padEnd(32)} active    ${vlan2Ports}
 ${vlan1.num.padEnd(4)} ${vlan1.name.padEnd(32)} active    ${vlan1Ports}`;
 
-            const switchIntList = shuffleArray(pcsList).map(pc => 
+            const switchIntList = shuffleArray(pcsList).map(pc =>
 `FastEthernet0/${pc.interface.split('/')[1]} is up, line protocol is up (connected)
   Hardware is FastEthernet, address is 000a.${getRandomHexByte()}${getRandomHexByte()}.${getRandomHexByte()}${getRandomHexByte()}
   Port title: Link to ${pc.name}`
             ).join('\n');
 
-            const switchInterface = switchIntList + 
+            const switchInterface = switchIntList +
 `\nGigabitEthernet0/1 is up, line protocol is up (connected)
   Hardware is GigabitEthernet, address is 000a.f311.2a0d
   Port title: Trunk to Router0`;
 
-            const switchMacTable = 
+            const switchMacTable =
 `          Mac Address Table
 -------------------------------------------
 Vlan    Mac Address       Type        Ports
 ----    -----------       --------    -----
 ` + shuffleArray(pcsList).map(pc => `  ${pc.vlanNum.padEnd(6)} ${pc.mac.padEnd(17)} DYNAMIC     ${pc.interface}`).join('\n');
 
-            const routerInterface = 
+            const routerInterface =
 `GigabitEthernet0/0.${vlan2.num} is up, line protocol is up
   Encapsulation 802.1Q Virtual LAN, Vlan ID ${vlan2.num}
   Internet address is 192.168.${subnet2}.1/24
@@ -565,7 +707,7 @@ GigabitEthernet0/0.${vlan1.num} is up, line protocol is up
   Encapsulation 802.1Q Virtual LAN, Vlan ID ${vlan1.num}
   Internet address is 192.168.${subnet1}.1/24`;
 
-            const routerArp = 
+            const routerArp =
 `Protocol  Address          Age (min)  Hardware Addr   Type   Interface
 ` + shuffleArray(pcsList).map(pc => `Internet  ${pc.ip.padEnd(16)} ${getRandomInt(1,30).toString().padEnd(10)} ${pc.mac.padEnd(15)} ARPA   GigabitEthernet0/0.${pc.vlanNum}`).join('\n');
 
@@ -584,36 +726,151 @@ GigabitEthernet0/0.${vlan1.num} is up, line protocol is up
                 }
             };
 
-            // Reset Form Inputs and Give 1 Unique Pre-filled Answer to each PC
+            // Reset the form, the marks, the hints and the tries; give each PC one pre-filled answer
+            fieldState = {}; wrongTries = {}; narrowPick = {};
             const properties = shuffleArray(["mac", "interface", "vlanNum", "ip"]);
 
             for (let i = 1; i <= 4; i++) {
                 const key = `pc${i}`;
                 const givenProp = properties[i - 1];
-
-                ["mac", "interface", "vlanNum", "vlanName", "ip"].forEach(prop => {
-                    const fieldId = `${key}-${prop === "vlanNum" ? "vlan-num" : prop === "vlanName" ? "vlan-name" : prop}`;
-                    const inputElem = document.getElementById(fieldId);
-                    inputElem.value = "";
-                    inputElem.style.borderColor = "#45475a";
-
-                    if (prop === givenProp) {
-                        inputElem.value = correctAnswers[key][prop];
-                    }
+                FIELDS.forEach(f => {
+                    const fid = `${key}-${f.id}`;
+                    document.getElementById(fid).value = (f.key === givenProp) ? correctAnswers[key][f.key] : "";
+                    paintField(fid);
                 });
+            }
+            showResult('', '');
+        }
+
+        // ---------- Checking: the same port, MAC or VLAN written any usual way counts ----------
+        function norm(fieldKey, value) {
+            const v = String(value || '').trim();
+            if (fieldKey === 'mac') {
+                const hex = v.replace(/[.:\-\s]/g, '').toLowerCase();
+                return /^[0-9a-f]{12}$/.test(hex) ? hex : '#' + v.toLowerCase();
+            }
+            if (fieldKey === 'interface') {
+                const m = v.toLowerCase().replace(/\s+/g, '').match(/^(fastethernet|fa|f)(\d+\/\d+)$/);
+                return m ? 'fa' + m[2] : '#' + v.toLowerCase();
+            }
+            if (fieldKey === 'vlanNum') return v.toLowerCase().replace(/^vlan\s*/, '');
+            if (fieldKey === 'vlanName') return v.toLowerCase();
+            return v;
+        }
+
+        function isRight(fieldKey, value, expected) {
+            return String(value || '').trim() !== '' && norm(fieldKey, value) === norm(fieldKey, expected);
+        }
+
+        function fieldParts(fid) {
+            const [pc, ...rest] = fid.split('-');
+            const f = FIELDS.find(x => x.id === rest.join('-'));
+            return { pc, f };
+        }
+
+        function validateForm() {
+            let right = 0, total = 0;
+            for (let i = 1; i <= 4; i++) {
+                const key = `pc${i}`;
+                FIELDS.forEach(f => {
+                    const fid = `${key}-${f.id}`;
+                    const value = document.getElementById(fid).value;
+                    total++;
+                    if (isRight(f.key, value, correctAnswers[key][f.key])) { fieldState[fid] = 'right'; right++; }
+                    else { fieldState[fid] = 'wrong'; if (value.trim()) wrongTries[fid] = (wrongTries[fid] || 0) + 1; }
+                    paintField(fid);
+                });
+            }
+
+            if (right === total) {
+                showResult('all-right', `<p class="lead">✓ Great job! All ${total} fields match the topology data from the CLI.</p><p>Press Reset / Generate New Problem for a new network.</p>`);
+                if (window.SimHub) SimHub.markComplete('device-info-cli');
+            } else {
+                showResult('some-wrong', `<p class="lead">✗ ${right} of ${total} fields are right.</p><p>Fix the fields marked "Not right yet" and inspect the CLI again. A hint appears under a field after its third wrong try. Clear wrong answers empties only the fields that are wrong.</p>`);
             }
         }
 
-        function openCLI(device) {
+        function clearWrong() {
+            let n = 0;
+            Object.keys(fieldState).forEach(fid => {
+                if (fieldState[fid] === 'wrong') { document.getElementById(fid).value = ''; fieldState[fid] = ''; paintField(fid); n++; }
+            });
+            showResult(n ? 'some-wrong' : '', n ? `<p class="lead">Cleared ${n} wrong answer${n === 1 ? '' : 's'}.</p><p>Your right answers are still there. The hints you have reached stay under their fields.</p>` : `<p>Nothing to clear: no field is marked "Not right yet".</p>`);
+        }
+
+        function showResult(kind, html) {
+            const r = document.getElementById('result');
+            r.className = 'result' + (kind ? ' ' + kind : '');
+            r.innerHTML = html;
+        }
+
+        // ---------- A field's mark and its hint ----------
+        function paintField(fid) {
+            const g = document.getElementById('g-' + fid);
+            const st = fieldState[fid] || '';
+            const value = document.getElementById(fid).value.trim();
+            g.classList.remove('right', 'wrong', 'changed');
+            if (st) g.classList.add(st);
+            const s = document.getElementById(fid + '-status');
+            s.textContent = st === 'right' ? '✓ Right'
+                : st === 'wrong' ? (value ? '✗ Not right yet' : '✗ Not right yet: still empty')
+                : st === 'changed' ? 'Changed since the last check'
+                : '';
+            const h = document.getElementById(fid + '-hint');
+            const tries = wrongTries[fid] || 0;
+            const rung = tries >= 5 ? 3 : tries === 4 ? 2 : tries === 3 ? 1 : 0;
+            if (st === 'right' || rung === 0) { h.hidden = true; h.innerHTML = ''; return; }
+            const { pc, f } = fieldParts(fid);
+            let html = `<p><span class="rung">Hint 1 of 3: where to look</span>${HINTS[f.key][0]}</p>`;
+            if (rung >= 2) html += `<p><span class="rung">Hint 2 of 3: the rule that decides it</span>${HINTS[f.key][1]}</p>`;
+            if (rung >= 3) html += narrowHint(fid, pc, f);
+            h.innerHTML = html;
+            h.hidden = false;
+        }
+
+        // Rung 3: every value but two struck out, each with its reason. One of the two left is right; the hint never says which.
+        function narrowHint(fid, pc, f) {
+            const me = correctAnswers[pc];
+            const others = ['pc1', 'pc2', 'pc3', 'pc4'].filter(k => k !== pc).map(k => correctAnswers[k]);
+            let wrong = [];   // [{ v, why }]
+            if (f.key === 'mac') {
+                others.forEach(o => wrong.push({ v: o.mac, why: `learned on ${o.interface}, which <code>show interface</code> says is the link to ${o.name}` }));
+            } else if (f.key === 'interface') {
+                others.forEach(o => wrong.push({ v: o.interface, why: `<code>show interface</code> says this port is the link to ${o.name}` }));
+            } else if (f.key === 'ip') {
+                others.forEach(o => wrong.push({ v: o.ip, why: `the ARP table pairs it with ${o.mac}, which the MAC table puts on ${o.interface}, ${o.name}'s port` }));
+            } else if (f.key === 'vlanNum') {
+                const other = others.find(o => o.vlanNum !== me.vlanNum);
+                wrong = [{ v: '1', why: 'VLAN 1 (default) holds only the unused ports and Gig0/1, the link to Router0; no PC is in it' }, { v: other.vlanNum, keepOnly: true }];
+            } else if (f.key === 'vlanName') {
+                const other = others.find(o => o.vlanNum !== me.vlanNum);
+                wrong = [{ v: 'default', why: 'the name of VLAN 1, which holds only the unused ports and the link to Router0' }, { v: other.vlanName, keepOnly: true }];
+            }
+            // one wrong value stays standing beside the right one; the same one every time for this problem
+            if (!narrowPick[fid]) {
+                const keepable = wrong.filter(w => w.keepOnly).length ? wrong.filter(w => w.keepOnly) : wrong;
+                const keep = keepable[Math.floor(Math.random() * keepable.length)].v;
+                narrowPick[fid] = { keep, rightFirst: Math.random() < 0.5 };
+            }
+            const pick = narrowPick[fid];
+            const struck = wrong.filter(w => w.v !== pick.keep && !w.keepOnly);
+            const two = pick.rightFirst ? [me[f.key], pick.keep] : [pick.keep, me[f.key]];
+            return `<p><span class="rung">Hint 3 of 3: two left</span>It is one of these two: <code>${esc(two[0])}</code> or <code>${esc(two[1])}</code>.</p>`
+                + `<p>Ruled out:</p><ul>` + struck.map(w => `<li><code>${esc(w.v)}</code>: ${w.why}.</li>`).join('') + `</ul>`;
+        }
+
+        // ---------- The command line ----------
+        function openCLI(device, opener) {
             currentDevice = device;
+            cliOpener = opener || null;
             document.getElementById('cliTitle').innerText = `${device} - Command Line Interface`;
             document.getElementById('cliPrompt').innerText = `${device}#`;
-            
+
             const outputElem = document.getElementById('cliOutput');
             outputElem.innerText = cliHistory[device];
-            
+
             document.getElementById('cliModal').style.display = 'flex';
-            
+
             setTimeout(() => {
                 outputElem.scrollTop = outputElem.scrollHeight;
                 document.getElementById('cliInput').focus();
@@ -622,7 +879,13 @@ GigabitEthernet0/0.${vlan1.num} is up, line protocol is up
 
         function closeCLI() {
             document.getElementById('cliModal').style.display = 'none';
+            if (cliOpener) cliOpener.focus();
         }
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && document.getElementById('cliModal').style.display === 'flex') closeCLI();
+        });
+        document.getElementById('cliModal').addEventListener('click', e => { if (e.target.id === 'cliModal') closeCLI(); });
 
         function handleCommand(event) {
             if (event.key === 'Enter') {
@@ -667,51 +930,27 @@ GigabitEthernet0/0.${vlan1.num} is up, line protocol is up
                 const appendText = prompt + (response ? response + '\n' : '') + '\n';
                 cliHistory[currentDevice] += appendText;
                 output.innerText = cliHistory[currentDevice];
-                
+
                 input.value = '';
                 output.scrollTop = output.scrollHeight;
             }
         }
 
-        function validateForm() {
-            let allCorrect = true;
-
-            for (let i = 1; i <= 4; i++) {
-                const key = `pc${i}`;
-                const expected = correctAnswers[key];
-
-                const macInput = document.getElementById(`${key}-mac`);
-                const intInput = document.getElementById(`${key}-interface`);
-                const vnumInput = document.getElementById(`${key}-vlan-num`);
-                const vnameInput = document.getElementById(`${key}-vlan-name`);
-                const ipInput = document.getElementById(`${key}-ip`);
-
-                const isMacValid = macInput.value.trim().toUpperCase() === expected.mac.toUpperCase();
-                const isIntValid = intInput.value.trim().toLowerCase() === expected.interface.toLowerCase();
-                const isVnumValid = vnumInput.value.trim() === expected.vlanNum;
-                const isVnameValid = vnameInput.value.trim().toLowerCase() === expected.vlanName.toLowerCase();
-                const isIpValid = ipInput.value.trim() === expected.ip;
-
-                macInput.style.borderColor = isMacValid ? "var(--accent-green)" : "var(--accent-red)";
-                intInput.style.borderColor = isIntValid ? "var(--accent-green)" : "var(--accent-red)";
-                vnumInput.style.borderColor = isVnumValid ? "var(--accent-green)" : "var(--accent-red)";
-                vnameInput.style.borderColor = isVnameValid ? "var(--accent-green)" : "var(--accent-red)";
-                ipInput.style.borderColor = isIpValid ? "var(--accent-green)" : "var(--accent-red)";
-
-                if (!isMacValid || !isIntValid || !isVnumValid || !isVnameValid || !isIpValid) {
-                    allCorrect = false;
-                }
-            }
-
-            if (allCorrect) {
-                alert("Great job! All PC values match the topology data from the CLI.");
-            } else {
-                alert("Some fields are incorrect or missing. Check the highlighted red boxes and inspect the CLI again.");
-            }
+        // ---------- Easier reading: on stays on, across pages and visits ----------
+        function initEasier() {
+            const b = document.getElementById('easierBtn'), root = document.documentElement;
+            const paint = () => { const on = root.classList.contains('easier'); b.setAttribute('aria-pressed', String(on)); b.textContent = 'Easier reading: ' + (on ? 'on' : 'off'); };
+            b.addEventListener('click', () => {
+                const on = !root.classList.contains('easier');
+                root.classList.toggle('easier', on);
+                try { localStorage.setItem('cwp-easier-reading', on ? '1' : '0'); } catch (e) { /* storage off */ }
+                paint();
+            });
+            paint();
         }
 
         // Initialize on load
-        window.onload = initLab;
+        window.addEventListener('DOMContentLoaded', () => { buildCards(); initEasier(); initLab(); });
     </script>
 </body>
 </html>
