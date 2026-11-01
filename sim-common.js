@@ -29,10 +29,29 @@
         if (r.height > 0 && r.height < innerHeight * 0.5) { el.style.top = (top + h) + 'px'; el.setAttribute('data-simhub-moved', '1'); }
       }
     }
-    var b = document.body, de = document.documentElement;
+    fitNoScroll(bar, h);
+  }
+
+  /* A page that cannot scroll (its own overflow: hidden) and fills the window: every box that now runs past the bottom of
+     the window is shortened by exactly that much, its own padding and box model kept, so nothing is cut off. Redone on resize. */
+  function fitNoScroll(bar, h) {
+    var b = document.body, de = document.documentElement, i;
+    var fitted = document.querySelectorAll('[data-simhub-fit]');
+    for (i = 0; i < fitted.length; i++) { fitted[i].style.height = ''; fitted[i].style.minHeight = ''; fitted[i].removeAttribute('data-simhub-fit'); }
     var noScroll = /hidden|clip/.test(getComputedStyle(b).overflowY) || /hidden|clip/.test(getComputedStyle(de).overflowY);
-    if (noScroll && !b.getAttribute('data-simhub-moved') && b.getBoundingClientRect().height >= innerHeight - h - 2) {
-      b.style.height = 'calc(100vh - ' + h + 'px)'; b.style.minHeight = '0'; b.setAttribute('data-simhub-moved', '1');
+    if (!noScroll) return;
+    var vh = innerHeight, els = [b].concat(Array.prototype.slice.call(b.getElementsByTagName('*')));
+    for (i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (el === bar || bar.contains(el)) continue;
+      var cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.display === 'inline' || cs.position === 'fixed' || cs.position === 'absolute') continue;
+      var r = el.getBoundingClientRect();
+      if (r.height >= vh - h - 2 && r.bottom > vh + 0.5) {
+        el.style.height = Math.max(0, parseFloat(cs.height) - (r.bottom - vh)) + 'px';
+        el.style.minHeight = '0';
+        el.setAttribute('data-simhub-fit', '1');
+      }
     }
   }
 
