@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Office Wi-Fi Placement Planner</title>
+    <script>
+        /* Easier reading: on stays on, across pages, visits and the program's other sites. Set before the page paints. */
+        try { if (localStorage.getItem("cwp-easier-reading") === "1") document.documentElement.classList.add("easier"); } catch (e) {}
+    </script>
+    <script src="../sim-common.js"></script>
+    <script>if (window.SimHub) SimHub.init('wifi-coverage-planner', 'Wi-Fi Coverage Planner', '../index.html');</script>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+        }
+        .canvas-container {
+            position: relative;
+            touch-action: none;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 3px;
+        }
+        @keyframes pulse-red {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.15); opacity: 0.3; }
+        }
+        .interference-pulse {
+            animation: pulse-red 2s infinite ease-in-out;
+        }
+        /* Keyboard: a clear yellow ring on whatever has focus */
+        button:focus-visible, .device-node:focus-visible, [tabindex]:focus-visible {
+            outline: 3px solid #fde047;
+            outline-offset: 3px;
+        }
+        .device-node:focus-visible { outline-offset: 5px; }
+        /* The results heading takes focus only so a screen reader starts there; it isn't a control, and a ring round it would sit on the line below */
+        #modalTitle:focus, #modalTitle:focus-visible { outline: none; }
+        /* A verdict says what it means in words, with a tick or a cross; the colour is only the third signal */
+        .verdict { font-weight: 600; }
+        .verdict.ok { color: #6ee7b7; }
+        .verdict.bad { color: #fda4af; }
+        .verdict.none { color: #cbd5e1; font-weight: 400; }
+        .hint-box { border-left: 4px solid #fcd34d; }
+        /* Easier reading: a plainer face, wider letter, word and line spacing, a little larger */
+        html.easier body { font-family: Verdana, "DejaVu Sans", Tahoma, "Segoe UI", Arial, sans-serif; letter-spacing: 0.03em; word-spacing: 0.12em; line-height: 1.7; }
+        html.easier .text-xs { font-size: 0.85rem; line-height: 1.6; }
+        html.easier .text-sm { font-size: 0.95rem; line-height: 1.7; }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { transition: none !important; animation: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+    <!-- Header -->
+    <header class="bg-slate-900 border-b border-slate-800 px-4 sm:px-6 py-4 sticky z-30 shadow-lg" style="top: var(--simhub-h, 0px)">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-blue-600/20 border border-blue-500/40 rounded-xl text-blue-300 text-xl" aria-hidden="true">
+                    <i class="fa-solid fa-wifi"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-white tracking-wide flex items-center gap-2">
+                        Office Network Coverage Planner
+                    </h1>
+                    <p class="text-sm text-slate-300">Position Router &amp; Extender for optimal indoor coverage, minimal RF interference, and secure perimeter containment</p>
+                </div>
+            </div>
+
+            <!-- Controls & Actions -->
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <button type="button" id="easierBtn" aria-pressed="false" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-600 rounded-lg text-sm font-medium transition">Easier reading: off</button>
+                <button type="button" id="toggleHeatmapBtn" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-600 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-eye text-blue-300" aria-hidden="true"></i>
+                    <span id="heatmapToggleText">Heatmap: High</span>
+                </button>
+                <button type="button" id="resetBtn" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-600 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-rotate-left text-amber-300" aria-hidden="true"></i> Reset Layout
+                </button>
+                <button type="button" id="submitBtn" class="px-5 py-2 bg-blue-800 hover:bg-blue-900 text-white font-semibold rounded-lg text-sm transition flex items-center gap-2 shadow-md shadow-blue-900/40">
+                    <i class="fa-solid fa-circle-check" aria-hidden="true"></i> Evaluate Placement
+                </button>
+            </div>
+        </div>
+        <p id="statusLine" role="status" aria-live="polite" class="max-w-7xl mx-auto mt-2 text-sm text-amber-200 min-h-[1.5rem]"></p>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto w-full p-4 md:p-6 flex-grow flex flex-col lg:flex-row gap-6">
+
+        <!-- Left Column: Floorplan Canvas Area -->
+        <div class="flex-grow flex flex-col gap-4 min-w-0">
+
+            <!-- Blueprint Canvas Box -->
+            <div class="canvas-container bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex justify-center items-center p-2 relative min-h-[260px] sm:min-h-[520px]">
+
+                <!-- Floor Plan Canvas -->
+                <canvas id="floorCanvas" width="850" height="550" class="rounded-xl cursor-crosshair bg-slate-950 w-full h-auto max-w-[850px]" role="img" aria-label="Office floor plan: four offices across the top (Office 1, Office 2, Office 3, Executive Suite), the central hallway, and along the bottom the kitchen, the security office and the conference room. Red dashed circles mark the interference zones; the Coverage by room list gives the signal in each room in words."></canvas>
+
+                <!-- Draggable Devices overlay overlaying the canvas -->
+                <div id="dragContainer" class="absolute inset-0 pointer-events-none">
+                    <!-- Router Icon -->
+                    <div id="routerNode" tabindex="0" role="button" aria-label="Router" class="device-node absolute pointer-events-auto cursor-grab active:cursor-grabbing w-11 h-11 bg-blue-600 border-2 border-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/50 transition-transform hover:scale-110 -translate-x-1/2 -translate-y-1/2 z-20 group" style="display: none;">
+                        <i class="fa-solid fa-wifi text-white text-lg" aria-hidden="true"></i>
+                        <span class="absolute -bottom-7 bg-slate-900 text-blue-200 text-xs font-bold px-2 py-0.5 rounded border border-blue-500/50 whitespace-nowrap shadow">
+                            Router
+                        </span>
+                    </div>
+
+                    <!-- Extender Icon -->
+                    <div id="extenderNode" tabindex="0" role="button" aria-label="Extender" class="device-node absolute pointer-events-auto cursor-grab active:cursor-grabbing w-10 h-10 bg-purple-600 border-2 border-white rounded-full flex items-center justify-center shadow-lg shadow-purple-500/50 transition-transform hover:scale-110 -translate-x-1/2 -translate-y-1/2 z-20 group" style="display: none;">
+                        <i class="fa-solid fa-network-wired text-white text-sm" aria-hidden="true"></i>
+                        <span class="absolute -bottom-7 bg-slate-900 text-purple-200 text-xs font-bold px-2 py-0.5 rounded border border-purple-500/50 whitespace-nowrap shadow">
+                            Extender
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Legend Banner -->
+                <div class="absolute bottom-3 left-3 glass-panel rounded-lg p-2.5 text-xs hidden sm:flex flex-wrap gap-4 text-slate-200 pointer-events-none border border-slate-700/50">
+                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span> Strong Signal</div>
+                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> Medium Signal</div>
+                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span> Weak Signal</div>
+                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full border-2 border-dashed border-red-400 inline-block"></span> RF Interference Zone</div>
+                </div>
+
+                <!-- Tip overlay -->
+                <div id="canvasTip" class="absolute top-3 left-3 glass-panel rounded-lg px-3 py-1.5 text-sm text-blue-100 border border-blue-500/40 hidden sm:flex items-center gap-2 pointer-events-none">
+                    <i class="fa-solid fa-hand-pointer text-blue-300" aria-hidden="true"></i> Drag hardware from palette onto blueprint layout
+                </div>
+            </div>
+
+            <!-- The legend again, below the plan, on a phone (the plan is too small to hold it there) -->
+            <div class="sm:hidden glass-panel rounded-lg p-3 text-sm flex flex-wrap gap-x-4 gap-y-2 text-slate-200 border border-slate-700/50">
+                <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span> Strong Signal</div>
+                <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> Medium Signal</div>
+                <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span> Weak Signal</div>
+                <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full border-2 border-dashed border-red-400 inline-block"></span> RF Interference Zone</div>
+            </div>
+
+            <!-- Real-time Live Stats Panel -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="glass-panel p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs text-slate-200 font-semibold uppercase tracking-wider">Office Coverage</span>
+                        <i class="fa-solid fa-chart-pie text-emerald-300 text-sm" aria-hidden="true"></i>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span id="statCoverage" class="text-2xl font-extrabold text-slate-100">0%</span>
+                        <span class="text-sm text-slate-300">Target: ≥ 85%</span>
+                    </div>
+                    <p id="verdictCoverage" class="verdict none text-sm mt-1">Place the router to measure</p>
+                    <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden" aria-hidden="true">
+                        <div id="barCoverage" class="bg-emerald-500 h-full w-0 transition-all duration-300"></div>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs text-slate-200 font-semibold uppercase tracking-wider">Outside Signal Leakage</span>
+                        <i class="fa-solid fa-shield-halved text-amber-300 text-sm" aria-hidden="true"></i>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span id="statLeakage" class="text-2xl font-extrabold text-slate-100">0%</span>
+                        <span class="text-sm text-slate-300">Max Limit: ≤ 18%</span>
+                    </div>
+                    <p id="verdictLeakage" class="verdict none text-sm mt-1">Place the router to measure</p>
+                    <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden" aria-hidden="true">
+                        <div id="barLeakage" class="bg-amber-500 h-full w-0 transition-all duration-300"></div>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs text-slate-200 font-semibold uppercase tracking-wider">RF Interference Level</span>
+                        <i class="fa-solid fa-triangle-exclamation text-rose-300 text-sm" aria-hidden="true"></i>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span id="statInterference" class="text-2xl font-extrabold text-slate-100">0%</span>
+                        <span class="text-sm text-slate-300">Max Limit: ≤ 12%</span>
+                    </div>
+                    <p id="verdictInterference" class="verdict none text-sm mt-1">Place the router to measure</p>
+                    <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden" aria-hidden="true">
+                        <div id="barInterference" class="bg-rose-500 h-full w-0 transition-all duration-300"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar: Equipment Tray & Rules -->
+        <div class="w-full lg:w-80 flex flex-col gap-6 shrink-0">
+
+            <!-- Drag & Drop Hardware Station -->
+            <div class="glass-panel rounded-2xl p-5 border border-slate-800 flex flex-col gap-4 shadow-xl">
+                <h2 class="text-base font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
+                    <i class="fa-solid fa-boxes-packing text-blue-300" aria-hidden="true"></i> Equipment Palette
+                </h2>
+                <p class="text-sm text-slate-300">Drag items onto the layout to deploy hardware. With a keyboard: press Enter on an item to place it, then move it with the arrow keys (hold Shift to move further).</p>
+
+                <!-- Router Card -->
+                <button type="button" id="routerPalette" class="w-full text-left bg-slate-800/80 hover:bg-slate-800 border border-slate-700 hover:border-blue-500/60 p-3.5 rounded-xl flex items-center gap-3 cursor-grab transition shadow group">
+                    <span class="w-11 h-11 bg-blue-600/20 border border-blue-500/40 rounded-lg flex items-center justify-center text-blue-300 text-xl shrink-0 group-hover:scale-105 transition" aria-hidden="true">
+                        <i class="fa-solid fa-wifi"></i>
+                    </span>
+                    <span class="flex-grow">
+                        <span class="flex justify-between items-center gap-2">
+                            <span class="text-sm font-semibold text-white">Main Wi-Fi Router</span>
+                            <span id="routerBadge" class="text-xs bg-blue-950 text-blue-100 px-2 py-0.5 rounded border border-blue-700/60">Ready</span>
+                        </span>
+                        <span class="block text-sm text-slate-300 mt-0.5">Primary high-power access point</span>
+                    </span>
+                </button>
+
+                <!-- Extender Card -->
+                <button type="button" id="extenderPalette" class="w-full text-left bg-slate-800/80 hover:bg-slate-800 border border-slate-700 hover:border-purple-500/60 p-3.5 rounded-xl flex items-center gap-3 cursor-grab transition shadow group">
+                    <span class="w-11 h-11 bg-purple-600/20 border border-purple-500/40 rounded-lg flex items-center justify-center text-purple-300 text-lg shrink-0 group-hover:scale-105 transition" aria-hidden="true">
+                        <i class="fa-solid fa-network-wired"></i>
+                    </span>
+                    <span class="flex-grow">
+                        <span class="flex justify-between items-center gap-2">
+                            <span class="text-sm font-semibold text-white">Wi-Fi Range Extender</span>
+                            <span id="extenderBadge" class="text-xs bg-purple-950 text-purple-100 px-2 py-0.5 rounded border border-purple-700/60">Ready</span>
+                        </span>
+                        <span class="block text-sm text-slate-300 mt-0.5">Fills coverage dead zones</span>
+                    </span>
+                </button>
+            </div>
+
+            <!-- Coverage by room: the heat map in words -->
+            <div class="glass-panel rounded-2xl p-5 border border-slate-800 flex flex-col gap-3 shadow-xl">
+                <h2 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-emerald-300" aria-hidden="true"></i> Coverage by room
+                </h2>
+                <ul id="roomList" class="space-y-1.5 text-sm text-slate-200"></ul>
+            </div>
+
+            <!-- Interference Hazards Warning Box -->
+            <div class="glass-panel rounded-2xl p-5 border border-slate-800 flex flex-col gap-3 shadow-xl">
+                <h2 class="text-sm font-bold text-amber-300 flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Layout RF Hazards
+                </h2>
+                <div class="space-y-2.5 text-sm text-slate-200">
+                    <div class="p-2.5 bg-rose-950/40 border border-rose-900/50 rounded-lg flex items-start gap-2.5">
+                        <i class="fa-solid fa-kitchen-set text-rose-300 text-sm mt-1 shrink-0" aria-hidden="true"></i>
+                        <div>
+                            <span class="font-semibold text-rose-200">Kitchen (Bottom-Left):</span>
+                            <p class="text-slate-200 mt-0.5">Microwave emits heavy 2.4GHz interference. Refrigerator blocks and reflects signal paths.</p>
+                        </div>
+                    </div>
+                    <div class="p-2.5 bg-rose-950/40 border border-rose-900/50 rounded-lg flex items-start gap-2.5">
+                        <i class="fa-solid fa-walkie-talkie text-rose-300 text-sm mt-1 shrink-0" aria-hidden="true"></i>
+                        <div>
+                            <span class="font-semibold text-rose-200">Security Office (Bottom Mid):</span>
+                            <p class="text-slate-200 mt-0.5">DECT Cordless Phone &amp; 2-Way Radios flood airwaves causing wireless channel degradation.</p>
+                        </div>
+                    </div>
+                    <div class="p-2.5 bg-slate-800/60 border border-slate-700/60 rounded-lg flex items-start gap-2.5">
+                        <i class="fa-solid fa-users-rectangle text-blue-300 text-sm mt-1 shrink-0" aria-hidden="true"></i>
+                        <div>
+                            <span class="font-semibold text-blue-200">Conference Room (Bottom-Right):</span>
+                            <p class="text-slate-200 mt-0.5">Positioned directly right of Security Office. Needs clean signal without interference.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Submit Results Modal -->
+    <div id="resultsModal" class="fixed inset-0 bg-slate-950/85 z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300">
+        <div role="dialog" aria-modal="true" aria-labelledby="modalTitle" class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl flex flex-col gap-6 max-h-[90vh] overflow-y-auto">
+
+            <!-- Modal Header / Banner -->
+            <div id="modalBanner" class="p-4 rounded-xl flex items-center gap-4 bg-emerald-950 border border-emerald-800">
+                <div id="modalIcon" class="w-12 h-12 rounded-full bg-emerald-600/20 text-emerald-300 flex items-center justify-center text-2xl shrink-0" aria-hidden="true">
+                    <i class="fa-solid fa-award"></i>
+                </div>
+                <div>
+                    <h2 id="modalTitle" tabindex="-1" class="text-xl font-bold text-white">Optimal Placement Achieved!</h2>
+                    <p id="modalSubtitle" class="text-sm text-slate-200 mt-0.5">Your network design achieves high coverage with minimal interference and leakage.</p>
+                </div>
+            </div>
+
+            <!-- Score Summary Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700">
+                    <div class="text-sm text-slate-200">Coverage Score</div>
+                    <div id="modalCoverageVal" class="text-xl font-bold text-white mt-1">92%</div>
+                    <div id="modalCoverageVerdict" class="verdict text-sm mt-1"></div>
+                </div>
+                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700">
+                    <div class="text-sm text-slate-200">Outside Leakage</div>
+                    <div id="modalLeakageVal" class="text-xl font-bold text-white mt-1">8%</div>
+                    <div id="modalLeakageVerdict" class="verdict text-sm mt-1"></div>
+                </div>
+                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700">
+                    <div class="text-sm text-slate-200">Interference</div>
+                    <div id="modalInterferenceVal" class="text-xl font-bold text-white mt-1">3%</div>
+                    <div id="modalInterferenceVerdict" class="verdict text-sm mt-1"></div>
+                </div>
+            </div>
+
+            <!-- What the planner measured (every result), and the hints (after the third try that falls short) -->
+            <div id="factsBox" class="space-y-3 text-sm text-slate-200 leading-relaxed border-t border-slate-800 pt-4">
+                <h3 class="text-sm font-bold text-blue-200 flex items-center gap-2">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> What the planner measured
+                </h3>
+                <ul id="factsList" class="space-y-2 list-disc pl-5"></ul>
+            </div>
+            <div id="hintsBox" class="hint-box bg-slate-800 rounded-lg p-4 text-sm text-slate-100 leading-relaxed space-y-3 hidden"></div>
+
+            <!-- Educational Explanation Content (shown once the placement meets every target) -->
+            <div id="rationaleBox" class="space-y-4 text-sm text-slate-200 leading-relaxed border-t border-b border-slate-800 py-4">
+                <h3 class="text-sm font-bold text-blue-200 flex items-center gap-2">
+                    <i class="fa-solid fa-graduation-cap" aria-hidden="true"></i> Technical Analysis &amp; Placement Rationale
+                </h3>
+
+                <div class="space-y-3">
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <strong class="text-slate-100 block mb-1">1. Top Office Row &amp; Corridor Propagation:</strong>
+                        <p id="explanationCoverage" class="text-slate-200">Positioning the main router along the central hallway enables RF waves to easily pass into all four top offices (Office 1, Office 2, Office 3, Executive Suite) through interior drywall partitions.</p>
+                    </div>
+
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <strong class="text-slate-100 block mb-1">2. Kitchen &amp; Security Office RF Mitigation:</strong>
+                        <p id="explanationRFI" class="text-slate-200">Microwaves emit 2.4 GHz noise, while DECT phones and 2-way radios in the security office cause channel congestion. Keeping wireless equipment away from both rooms avoids signal degradation.</p>
+                    </div>
+
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <strong class="text-slate-100 block mb-1">3. Conference Room Coverage &amp; Perimeter Security:</strong>
+                        <p id="explanationLeakage" class="text-slate-200">Extending coverage into the bottom-right Conference Room with an extender ensures high density client connectivity while insulated exterior walls keep outdoor signal leakage safe.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Actions -->
+            <div class="flex flex-wrap justify-between items-center gap-3">
+                <button type="button" id="modalTryAgainBtn" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-lg text-sm font-medium transition border border-slate-600">
+                    Adjust Positions
+                </button>
+                <button type="button" id="modalCloseBtn" class="px-5 py-2 bg-blue-800 hover:bg-blue-900 text-white font-semibold rounded-lg text-sm transition">
+                    Continue Experimenting
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-slate-900 border-t border-slate-800 py-4 px-4 text-center text-sm text-slate-300">
+        Cyber Warrior Program — built by an instructor, for students, to make certification study more interactive. For educational purposes only. Not affiliated with, endorsed by, or sponsored by CompTIA®. All trademarks belong to their respective owners.
+    </footer>
+
+    <script>
+        // Canvas & Context Setup
+        const canvas = document.getElementById('floorCanvas');
+        const ctx = canvas.getContext('2d');
+        const dragContainer = document.getElementById('dragContainer');
+        const routerNode = document.getElementById('routerNode');
+        const extenderNode = document.getElementById('extenderNode');
+        const routerPalette = document.getElementById('routerPalette');
+        const extenderPalette = document.getElementById('extenderPalette');
+
+        // UI Controls
+        const resetBtn = document.getElementById('resetBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        const toggleHeatmapBtn = document.getElementById('toggleHeatmapBtn');
+        const heatmapToggleText = document.getElementById('heatmapToggleText');
+        const statusLine = document.getElementById('statusLine');
+
+        // Stats Display
+        const statCoverage = document.getElementById('statCoverage');
+        const statLeakage = document.getElementById('statLeakage');
+        const statInterference = document.getElementById('statInterference');
+        const barCoverage = document.getElementById('barCoverage');
+        const barLeakage = document.getElementById('barLeakage');
+        const barInterference = document.getElementById('barInterference');
+
+        // Modal Elements
+        const resultsModal = document.getElementById('resultsModal');
+        const modalBanner = document.getElementById('modalBanner');
+        const modalIcon = document.getElementById('modalIcon');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalSubtitle = document.getElementById('modalSubtitle');
+        const modalCoverageVal = document.getElementById('modalCoverageVal');
+        const modalLeakageVal = document.getElementById('modalLeakageVal');
+        const modalInterferenceVal = document.getElementById('modalInterferenceVal');
+        const modalCloseBtn = document.getElementById('modalCloseBtn');
+        const modalTryAgainBtn = document.getElementById('modalTryAgainBtn');
+
+        let heatmapQuality = 'high';
+
+        let routerPos = null;
+        let extenderPos = null;
+        let activeDragNode = null;
+        let failedChecks = 0;      // evaluations that fell short; never reset by moving the devices (Reset Layout starts over)
+        let labelBoxes = [];        // where each label's backing plate is drawn (the contrast check reads the canvas there)
+
+        const CANVAS_WIDTH = 850;
+        const CANVAS_HEIGHT = 550;
+
+        // Wall Definitions matching user layout requirements:
+        // Top Area = All Offices (Office 1, Office 2, Office 3, Executive Suite across top)
+        // Bottom Left = Kitchen
+        // Bottom Center = Security Office
+        // Bottom Right = Conference Room (Right side of Security Office)
+        const walls = [
+            // Outer Perimeter Walls (Exterior insulation - 0.65 loss)
+            { x1: 50, y1: 50, x2: 800, y2: 50, type: 'exterior', loss: 0.65 },
+            { x1: 800, y1: 50, x2: 800, y2: 500, type: 'exterior', loss: 0.65 },
+            { x1: 800, y1: 500, x2: 50, y2: 500, type: 'exterior', loss: 0.65 },
+            { x1: 50, y1: 500, x2: 50, y2: 50, type: 'exterior', loss: 0.65 },
+
+            // Top Offices Horizontal Corridor Wall
+            { x1: 50, y1: 220, x2: 800, y2: 220, type: 'interior', loss: 0.15 },
+
+            // Top Offices Vertical Dividing Partitions
+            // Office 1 | Office 2
+            { x1: 230, y1: 50, x2: 230, y2: 220, type: 'interior', loss: 0.12 },
+            // Office 2 | Office 3
+            { x1: 420, y1: 50, x2: 420, y2: 220, type: 'interior', loss: 0.12 },
+            // Office 3 | Executive Suite
+            { x1: 610, y1: 50, x2: 610, y2: 220, type: 'interior', loss: 0.12 },
+
+            // Bottom Area Partitions:
+            // Kitchen Wall (Bottom Left: X: 50 -> 280, Y: 320 -> 500)
+            { x1: 50, y1: 320, x2: 280, y2: 320, type: 'interior', loss: 0.20 },
+            { x1: 280, y1: 320, x2: 280, y2: 500, type: 'interior', loss: 0.20 },
+
+            // Security Office Wall (Bottom Center: X: 310 -> 540, Y: 320 -> 500)
+            { x1: 310, y1: 320, x2: 540, y2: 320, type: 'interior', loss: 0.18 },
+            { x1: 310, y1: 320, x2: 310, y2: 500, type: 'interior', loss: 0.18 },
+            { x1: 540, y1: 320, x2: 540, y2: 500, type: 'interior', loss: 0.18 },
+
+            // Conference Room Wall (Bottom Right: X: 540 -> 800, Y: 320 -> 500)
+            // (Adjacent directly to the right side of the Security Office)
+            { x1: 540, y1: 320, x2: 800, y2: 320, type: 'interior', loss: 0.15 }
+        ];
+
+        // Interference Hazards Data
+        const interferenceSources = [
+            { id: 'microwave', name: 'Microwave Oven (2.4GHz)', x: 95, y: 375, radius: 90, strength: 0.85 },
+            { id: 'fridge', name: 'Commercial Refrigerator', x: 210, y: 440, radius: 65, strength: 0.50 },
+            { id: 'phone', name: 'DECT Cordless Phone Base', x: 380, y: 400, radius: 85, strength: 0.80 },
+            { id: 'radio', name: '2-Way Radio Transceiver', x: 470, y: 430, radius: 80, strength: 0.75 }
+        ];
+
+        // The rooms (for "Coverage by room", and for saying where a device is)
+        const ROOMS = [
+            { name: 'Office 1', x1: 50, y1: 50, x2: 230, y2: 220 },
+            { name: 'Office 2', x1: 230, y1: 50, x2: 420, y2: 220 },
+            { name: 'Office 3', x1: 420, y1: 50, x2: 610, y2: 220 },
+            { name: 'Executive Suite', x1: 610, y1: 50, x2: 800, y2: 220 },
+            { name: 'Central Hallway', x1: 50, y1: 220, x2: 800, y2: 320, extra: { x1: 280, y1: 320, x2: 310, y2: 500 } },
+            { name: 'Kitchen & Breakroom', x1: 50, y1: 320, x2: 280, y2: 500 },
+            { name: 'Security Office', x1: 310, y1: 320, x2: 540, y2: 500 },
+            { name: 'Conference Room', x1: 540, y1: 320, x2: 800, y2: 500 }
+        ];
+        function inBox(x, y, b) { return x >= b.x1 && x <= b.x2 && y >= b.y1 && y <= b.y2; }
+        function roomOf(x, y) {
+            for (const r of ROOMS) if (inBox(x, y, r) || (r.extra && inBox(x, y, r.extra))) return r.name;
+            return 'outside the walls';
+        }
+
+        // Intersection Detection Helper
+        function linesIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
+            const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+            if (denom === 0) return false;
+            const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
+            const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
+            return (ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1);
+        }
+
+        // Calculate Wall Attenuation Loss
+        function calculateWallLoss(px, py, tx, ty) {
+            let totalLoss = 0;
+            for (const wall of walls) {
+                if (linesIntersect(px, py, tx, ty, wall.x1, wall.y1, wall.x2, wall.y2)) {
+                    totalLoss += wall.loss;
+                }
+            }
+            return totalLoss;
+        }
+
+        // Calculate Signal Strength with high range tuning
+        function getSignalStrengthFromSource(px, py, tx, ty, maxRange = 540) {
+            const dx = px - tx;
+            const dy = py - ty;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist > maxRange) return 0;
+
+            const distanceFactor = Math.pow(1 - (dist / maxRange), 1.15);
+            const wallLoss = calculateWallLoss(px, py, tx, ty);
+
+            const finalSignal = distanceFactor * Math.max(0, 1 - wallLoss);
+            return Math.max(0, finalSignal);
+        }
+
+        // Calculate RF Interference Intensity at Point
+        function getInterferenceAtPoint(px, py) {
+            let totalInterference = 0;
+            for (const source of interferenceSources) {
+                const dx = px - source.x;
+                const dy = py - source.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < source.radius) {
+                    const factor = (1 - dist / source.radius) * source.strength;
+                    totalInterference += factor;
+                }
+            }
+            return Math.min(1.0, totalInterference);
+        }
+
+        // Get Combined Mesh Signal Strength
+        function getCombinedSignal(px, py) {
+            let routerSignal = 0;
+            let extenderSignal = 0;
+
+            if (routerPos) {
+                routerSignal = getSignalStrengthFromSource(px, py, routerPos.x, routerPos.y, 540);
+            }
+
+            if (extenderPos && routerPos) {
+                const extenderToRouterSignal = getSignalStrengthFromSource(extenderPos.x, extenderPos.y, routerPos.x, routerPos.y, 540);
+
+                if (extenderToRouterSignal > 0.1) {
+                    const rawExtenderSignal = getSignalStrengthFromSource(px, py, extenderPos.x, extenderPos.y, 460);
+                    extenderSignal = rawExtenderSignal * Math.min(1.0, extenderToRouterSignal * 1.3);
+                }
+            }
+
+            const rawSignal = Math.max(routerSignal, extenderSignal);
+            const interference = getInterferenceAtPoint(px, py);
+
+            const netSignal = Math.max(0, rawSignal - interference * 0.5);
+            return {
+                netSignal,
+                rawSignal,
+                interference
+            };
+        }
+
+        // ---------- Labels on the plan: each on its own solid plate, so it reads over the heat map ----------
+        function labelFont(size, bold) {
+            const face = document.documentElement.classList.contains('easier') ? 'Verdana, "DejaVu Sans", sans-serif' : 'Inter, "Segoe UI", Arial, sans-serif';
+            return (bold ? 'bold ' : '') + size + 'px ' + face;
+        }
+        function planLabel(text, x, y, color, size, bold) {
+            ctx.save();
+            ctx.font = labelFont(size, bold);
+            ctx.textBaseline = 'alphabetic';
+            const w = ctx.measureText(text).width;
+            const box = { x: Math.round(x - 4), y: Math.round(y - size - 2), w: Math.round(w + 8), h: Math.round(size + 7), text, color };
+            ctx.fillStyle = '#0b1120';
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(box.x, box.y, box.w, box.h, 4); else ctx.rect(box.x, box.y, box.w, box.h);
+            ctx.fill();
+            ctx.fillStyle = color;
+            ctx.fillText(text, x, y);
+            ctx.restore();
+            labelBoxes.push(box);
+        }
+
+        // Render Floorplan Graphic
+        function drawFloorPlan() {
+            ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            labelBoxes = [];
+
+            // 1. Grid Background
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+            const gridSize = 25;
+            for (let x = 0; x < CANVAS_WIDTH; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, CANVAS_HEIGHT);
+                ctx.stroke();
+            }
+            for (let y = 0; y < CANVAS_HEIGHT; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(CANVAS_WIDTH, y);
+                ctx.stroke();
+            }
+
+            // 2. Heatmap Signal Grid
+            if (heatmapQuality !== 'off' && (routerPos || extenderPos)) {
+                renderHeatmap();
+            }
+
+            // 3. Outdoor Leakage Boundary Indicator
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.55)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 6]);
+            ctx.strokeRect(30, 30, CANVAS_WIDTH - 60, CANVAS_HEIGHT - 60);
+            ctx.setLineDash([]);
+
+            // 4. Interference Zones
+            for (const source of interferenceSources) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(source.x, source.y, source.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(244, 63, 94, 0.08)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(248, 113, 113, 0.6)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 4]);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // 5. Draw Walls
+            for (const wall of walls) {
+                ctx.beginPath();
+                ctx.moveTo(wall.x1, wall.y1);
+                ctx.lineTo(wall.x2, wall.y2);
+                if (wall.type === 'exterior') {
+                    ctx.strokeStyle = '#64748b'; // Exterior insulated boundary
+                    ctx.lineWidth = 8;
+                } else {
+                    ctx.strokeStyle = '#475569'; // Interior partition
+                    ctx.lineWidth = 4;
+                }
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            }
+
+            // 6. Draw Furniture & Room Labels
+            drawRoomLabelsAndFurniture();
+        }
+
+        // Draw Room Furniture & Architectural Labels
+        function drawRoomLabelsAndFurniture() {
+            // Furniture first, then every label on top of it
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(80, 100, 50, 30);
+            ctx.fillRect(260, 100, 50, 30);
+            ctx.fillRect(450, 100, 50, 30);
+            ctx.fillRect(640, 100, 60, 35);
+
+            // Microwave Graphic
+            ctx.fillStyle = '#1e293b';
+            ctx.strokeStyle = '#f43f5e';
+            ctx.lineWidth = 1.5;
+            ctx.fillRect(68, 358, 86, 32);
+            ctx.strokeRect(68, 358, 86, 32);
+
+            // Refrigerator Graphic
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(185, 420, 50, 50);
+            ctx.strokeRect(185, 420, 50, 50);
+
+            // Security Desk with Cordless Phone & Radio
+            ctx.fillStyle = '#1e293b';
+            ctx.strokeStyle = '#f43f5e';
+            ctx.fillRect(335, 380, 175, 58);
+            ctx.strokeRect(335, 380, 175, 58);
+
+            // Conference Table & Chairs
+            ctx.fillStyle = '#334155';
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(610, 380, 120, 60, 10); else ctx.rect(610, 380, 120, 60);
+            ctx.fill();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Labels (each on a solid plate)
+            planLabel('OUTDOOR PERIMETER (SIGNAL LEAKAGE ZONE)', 58, 44, '#fca5a5', 11, false);
+            planLabel('Office 1', 70, 78, '#e2e8f0', 13, true);
+            planLabel('Office 2', 250, 78, '#e2e8f0', 13, true);
+            planLabel('Office 3', 440, 78, '#e2e8f0', 13, true);
+            planLabel('Executive Suite', 630, 78, '#e2e8f0', 13, true);
+            planLabel('Central Hallway & Workstations', 320, 262, '#e2e8f0', 13, true);
+            planLabel('Kitchen & Breakroom', 65, 345, '#fda4af', 13, true);
+            planLabel('Microwave', 76, 379, '#fecaca', 12, false);
+            planLabel('Fridge', 193, 450, '#fecaca', 12, false);
+            planLabel('Security Office', 330, 345, '#fda4af', 13, true);
+            planLabel('DECT Cordless Phone', 343, 404, '#fecaca', 12, false);
+            planLabel('2-Way Radio Base', 343, 426, '#fecaca', 12, false);
+            planLabel('Conference Room', 560, 345, '#7dd3fc', 13, true);
+
+            // Render Extender-to-Router Link Line
+            if (routerPos && extenderPos) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(routerPos.x, routerPos.y);
+                ctx.lineTo(extenderPos.x, extenderPos.y);
+                const linkQuality = getSignalStrengthFromSource(extenderPos.x, extenderPos.y, routerPos.x, routerPos.y, 540);
+
+                if (linkQuality > 0.2) {
+                    ctx.strokeStyle = 'rgba(168, 85, 247, 0.85)';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                } else {
+                    ctx.strokeStyle = 'rgba(239, 68, 68, 0.9)';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([3, 3]);
+                }
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        // Render Propagation Heatmap
+        function renderHeatmap() {
+            const step = heatmapQuality === 'high' ? 8 : 16;
+
+            for (let x = 0; x < CANVAS_WIDTH; x += step) {
+                for (let y = 0; y < CANVAS_HEIGHT; y += step) {
+                    const { netSignal, interference } = getCombinedSignal(x + step / 2, y + step / 2);
+
+                    if (netSignal > 0.02) {
+                        let r, g, b, alpha;
+
+                        if (netSignal > 0.45) {
+                            // Strong Signal - Emerald Green
+                            r = Math.floor(16 + (1 - netSignal) * 80);
+                            g = 185;
+                            b = 129;
+                            alpha = netSignal * 0.42;
+                        } else if (netSignal > 0.18) {
+                            // Medium Signal - Amber Yellow
+                            r = 245;
+                            g = 158;
+                            b = 11;
+                            alpha = netSignal * 0.38;
+                        } else {
+                            // Weak Signal - Rose
+                            r = 244;
+                            g = 63;
+                            b = 94;
+                            alpha = 0.30;
+                        }
+
+                        if (interference > 0.3) {
+                            r = 239;
+                            g = 68;
+                            b = 68;
+                            alpha = Math.max(alpha, interference * 0.5);
+                        }
+
+                        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                        ctx.fillRect(x, y, step, step);
+                    }
+                }
+            }
+        }
+
+        // Calculate Live Metrics
+        function calculateMetrics() {
+            if (!routerPos && !extenderPos) {
+                return { coverage: 0, leakage: 0, interference: 0 };
+            }
+
+            let officePointsTotal = 0;
+            let officeCoveredPoints = 0;
+
+            let outsidePointsTotal = 0;
+            let outsideLeakedPoints = 0;
+
+            let totalInterferencePenalties = 0;
+            let totalPlacedNodes = 0;
+
+            const sampleStep = 15;
+
+            for (let x = 10; x < CANVAS_WIDTH; x += sampleStep) {
+                for (let y = 10; y < CANVAS_HEIGHT; y += sampleStep) {
+                    const isInsideOffice = (x >= 50 && x <= 800 && y >= 50 && y <= 500);
+                    const { netSignal } = getCombinedSignal(x, y);
+
+                    if (isInsideOffice) {
+                        officePointsTotal++;
+                        if (netSignal >= 0.14) {
+                            officeCoveredPoints++;
+                        }
+                    } else {
+                        outsidePointsTotal++;
+                        if (netSignal >= 0.28) {
+                            outsideLeakedPoints++;
+                        }
+                    }
+                }
+            }
+
+            const nodes = [];
+            if (routerPos) nodes.push(routerPos);
+            if (extenderPos) nodes.push(extenderPos);
+
+            nodes.forEach(node => {
+                totalPlacedNodes++;
+                const inf = getInterferenceAtPoint(node.x, node.y);
+                totalInterferencePenalties += inf;
+            });
+
+            const coveragePercent = officePointsTotal > 0 ? Math.round((officeCoveredPoints / officePointsTotal) * 100) : 0;
+            const leakagePercent = outsidePointsTotal > 0 ? Math.round((outsideLeakedPoints / outsidePointsTotal) * 100) : 0;
+            const interferencePercent = totalPlacedNodes > 0 ? Math.round((totalInterferencePenalties / totalPlacedNodes) * 100) : 0;
+
+            return {
+                coverage: coveragePercent,
+                leakage: leakagePercent,
+                interference: interferencePercent
+            };
+        }
+
+        // Each room's signal in words: Strong, Medium, Weak or No signal, and how much of it is covered
+        function roomCoverage() {
+            return ROOMS.map(r => {
+                let n = 0, covered = 0, sum = 0;
+                const boxes = r.extra ? [r, r.extra] : [r];
+                for (const b of boxes) for (let x = b.x1 + 8; x <= b.x2 - 8; x += 15) for (let y = b.y1 + 8; y <= b.y2 - 8; y += 15) {
+                    const s = getCombinedSignal(x, y).netSignal; n++; sum += s; if (s >= 0.14) covered++;
+                }
+                const avg = n ? sum / n : 0, pct = n ? Math.round(100 * covered / n) : 0;
+                const word = avg > 0.45 ? 'Strong' : avg > 0.18 ? 'Medium' : avg > 0.02 ? 'Weak' : 'No signal';
+                return { name: r.name, word, pct };
+            });
+        }
+
+        function renderRoomList() {
+            const ul = document.getElementById('roomList');
+            if (!routerPos && !extenderPos) { ul.innerHTML = '<li>Place the router to see each room’s signal.</li>'; return; }
+            ul.innerHTML = roomCoverage().map(r => `<li class="flex justify-between gap-2"><span>${r.name}</span><span class="font-semibold ${r.pct >= 85 ? 'text-emerald-200' : r.pct >= 50 ? 'text-amber-200' : 'text-rose-200'}">${r.word}, ${r.pct}% covered</span></li>`).join('');
+        }
+
+        function setVerdict(el, state, text) {
+            el.className = el.className.replace(/\b(ok|bad|none)\b/g, '').trim() + ' ' + state;
+            el.textContent = text;
+        }
+
+        // Update Stats HUD
+        function updateStatsUI() {
+            const metrics = calculateMetrics();
+            const placed = !!(routerPos || extenderPos);
+
+            statCoverage.textContent = `${metrics.coverage}%`;
+            barCoverage.style.width = `${metrics.coverage}%`;
+
+            statLeakage.textContent = `${metrics.leakage}%`;
+            barLeakage.style.width = `${metrics.leakage}%`;
+
+            statInterference.textContent = `${metrics.interference}%`;
+            barInterference.style.width = `${metrics.interference}%`;
+
+            if (!placed) {
+                ['verdictCoverage', 'verdictLeakage', 'verdictInterference'].forEach(id => setVerdict(document.getElementById(id), 'none', 'Place the router to measure'));
+            } else {
+                setVerdict(document.getElementById('verdictCoverage'), metrics.coverage >= 85 ? 'ok' : 'bad', metrics.coverage >= 85 ? '✓ Meets the target' : '✗ Below the target');
+                setVerdict(document.getElementById('verdictLeakage'), metrics.leakage <= 18 ? 'ok' : 'bad', metrics.leakage <= 18 ? '✓ Within the limit' : '✗ Over the limit');
+                setVerdict(document.getElementById('verdictInterference'), metrics.interference <= 12 ? 'ok' : 'bad', metrics.interference <= 12 ? '✓ Within the limit' : '✗ Over the limit');
+            }
+            renderRoomList();
+            return metrics;
+        }
+
+        // Get Coordinates
+        function getCanvasCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+            const scaleX = CANVAS_WIDTH / rect.width;
+            const scaleY = CANVAS_HEIGHT / rect.height;
+
+            return {
+                x: Math.max(20, Math.min(CANVAS_WIDTH - 20, (clientX - rect.left) * scaleX)),
+                y: Math.max(20, Math.min(CANVAS_HEIGHT - 20, (clientY - rect.top) * scaleY))
+            };
+        }
+
+        // Sync DOM Overlay Icons with Canvas Logic
+        function syncNodeDOMPositions() {
+            const rect = canvas.getBoundingClientRect();
+            const box = dragContainer.getBoundingClientRect();
+            const scaleX = rect.width / CANVAS_WIDTH;
+            const scaleY = rect.height / CANVAS_HEIGHT;
+            const offX = rect.left - box.left, offY = rect.top - box.top;
+
+            [['router', routerNode, routerPos, 'Router'], ['extender', extenderNode, extenderPos, 'Extender']].forEach(([key, node, pos, word]) => {
+                if (pos) {
+                    node.style.display = 'flex';
+                    node.style.left = `${offX + pos.x * scaleX}px`;
+                    node.style.top = `${offY + pos.y * scaleY}px`;
+                    node.setAttribute('aria-label', `${word}, in ${roomOf(pos.x, pos.y)}. Arrow keys move it; hold Shift to move further.`);
+                } else {
+                    node.style.display = 'none';
+                }
+            });
+        }
+
+        function markPlaced(nodeType) {
+            const badge = document.getElementById(nodeType === 'router' ? 'routerBadge' : 'extenderBadge');
+            badge.textContent = 'Active';
+            badge.className = 'text-xs bg-emerald-950 text-emerald-100 px-2 py-0.5 rounded border border-emerald-700/60';
+        }
+
+        function refresh() {
+            syncNodeDOMPositions();
+            drawFloorPlan();
+            return updateStatsUI();
+        }
+
+        // Drag Event Handlers
+        function setupDragging() {
+            const startDrag = (nodeType, e) => {
+                e.preventDefault();
+                activeDragNode = nodeType;
+                const coords = getCanvasCoords(e);
+
+                if (nodeType === 'router') routerPos = coords; else extenderPos = coords;
+                markPlaced(nodeType);
+                refresh();
+            };
+
+            routerPalette.addEventListener('mousedown', (e) => startDrag('router', e));
+            routerPalette.addEventListener('touchstart', (e) => startDrag('router', e), { passive: false });
+
+            extenderPalette.addEventListener('mousedown', (e) => startDrag('extender', e));
+            extenderPalette.addEventListener('touchstart', (e) => startDrag('extender', e), { passive: false });
+
+            routerNode.addEventListener('mousedown', (e) => startDrag('router', e));
+            routerNode.addEventListener('touchstart', (e) => startDrag('router', e), { passive: false });
+
+            extenderNode.addEventListener('mousedown', (e) => startDrag('extender', e));
+            extenderNode.addEventListener('touchstart', (e) => startDrag('extender', e), { passive: false });
+
+            const onMove = (e) => {
+                if (!activeDragNode) return;
+                e.preventDefault();
+                const coords = getCanvasCoords(e);
+
+                if (activeDragNode === 'router') {
+                    routerPos = coords;
+                } else if (activeDragNode === 'extender') {
+                    extenderPos = coords;
+                }
+
+                refresh();
+            };
+
+            const onEnd = () => {
+                activeDragNode = null;
+            };
+
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('touchmove', onMove, { passive: false });
+            window.addEventListener('mouseup', onEnd);
+            window.addEventListener('touchend', onEnd);
+            window.addEventListener('resize', () => {
+                syncNodeDOMPositions();
+                drawFloorPlan();
+            });
+
+            // Keyboard: Enter on a palette item places it (top corner of the plan if it isn't out yet); the arrow keys move it
+            const START = { router: { x: 90, y: 150 }, extender: { x: 760, y: 150 } };
+            [['router', routerPalette, routerNode], ['extender', extenderPalette, extenderNode]].forEach(([type, pal, node]) => {
+                pal.addEventListener('click', () => {
+                    if (type === 'router' ? !routerPos : !extenderPos) {
+                        if (type === 'router') routerPos = { ...START.router }; else extenderPos = { ...START.extender };
+                        markPlaced(type);
+                        refresh();
+                    }
+                    node.focus();
+                    announce(type);
+                });
+                node.addEventListener('keydown', (e) => {
+                    const step = e.shiftKey ? 50 : 10;
+                    const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+                    if (!d) return;
+                    e.preventDefault();
+                    const pos = type === 'router' ? routerPos : extenderPos;
+                    pos.x = Math.max(20, Math.min(CANVAS_WIDTH - 20, pos.x + d[0]));
+                    pos.y = Math.max(20, Math.min(CANVAS_HEIGHT - 20, pos.y + d[1]));
+                    refresh();
+                    announce(type);
+                });
+            });
+        }
+
+        function say(text) { statusLine.textContent = text; }
+        let announceTimer = null;
+        function announce(type) {
+            clearTimeout(announceTimer);
+            announceTimer = setTimeout(() => {
+                const pos = type === 'router' ? routerPos : extenderPos;
+                if (!pos) return;
+                const m = calculateMetrics();
+                say(`${type === 'router' ? 'Router' : 'Extender'} in ${roomOf(pos.x, pos.y)}. Coverage ${m.coverage}%, leakage ${m.leakage}%, interference ${m.interference}%.`);
+            }, 250);
+        }
+
+        // What the planner measured: the evidence, in words, for every result
+        function measuredFacts(metrics) {
+            const facts = [];
+            const rooms = roomCoverage();
+            const weak = rooms.filter(r => r.pct < 85);
+            facts.push(weak.length
+                ? 'Rooms under 85% covered: ' + weak.map(r => `${r.name} (${r.word.toLowerCase()}, ${r.pct}% covered)`).join('; ') + '.'
+                : 'Every room is at least 85% covered.');
+            [['Router', routerPos], ['Extender', extenderPos]].forEach(([word, pos]) => {
+                const near = interferenceSources.filter(s => Math.hypot(pos.x - s.x, pos.y - s.y) < s.radius).map(s => s.name);
+                facts.push(`${word}: in ${roomOf(pos.x, pos.y)}; ` + (near.length ? `inside the interference zone of the ${near.join(' and the ')} (${Math.round(getInterferenceAtPoint(pos.x, pos.y) * 100)}% interference where it sits).` : 'clear of every interference zone.'));
+            });
+            const link = getSignalStrengthFromSource(extenderPos.x, extenderPos.y, routerPos.x, routerPos.y, 540);
+            facts.push(link > 0.2 ? 'The extender hears the router well (the purple link line).'
+                : link > 0.1 ? 'The extender only just hears the router (the link line is red): it repeats a weak signal.'
+                : 'The extender cannot hear the router (the link line is red), so it adds no coverage at all.');
+            facts.push(`${metrics.leakage}% of the outdoor ring around the building gets usable signal (the limit is 18%).`);
+            return facts;
+        }
+
+        // Hints, after the third evaluation that falls short: where to look, then the rule that decides it, then the field narrowed.
+        // None of them gives a spot to put a device.
+        const HINT_1 = 'Where to look: the <b>Coverage by room</b> list and the red dashed circles on the plan. Which rooms are weak, and is either device inside a circle?';
+        const HINT_2 = 'The rule that decides it: signal fades with distance and with every wall it crosses, and it is drowned out inside a hazard’s circle. A router covers the most from a spot central to the rooms it has to reach. An extender only repeats what it hears, so it needs a strong link back to the router (a purple line, not red) and sits towards the rooms the router cannot reach on its own.';
+        const HINT_3 = 'The field narrowed, for the router:<ul class="list-disc pl-5 mt-2 space-y-1">'
+            + '<li>Ruled out: <b>Office 1</b> and the <b>Executive Suite</b>. They are corner rooms; from either one, no extender spot lifts coverage to 85%.</li>'
+            + '<li>Ruled out: <b>outside the walls</b>. The exterior wall stops most of the signal getting in, and what is outside leaks.</li>'
+            + '<li>Ruled out: <b>close to the microwave, fridge, phone or radio</b>, well inside its circle. The interference there alone is over the limit.</li>'
+            + '</ul><p class="mt-2">Still in play: Office 2, Office 3, the hallway, the conference room, and the parts of the kitchen and security office away from the hazards.</p>';
+
+        // Evaluate Placement Strategy
+        let modalOpener = null;
+        function evaluatePlacement() {
+            if (!routerPos || !extenderPos) {
+                say('Place both the Main Wi-Fi Router and the Range Extender on the office layout before evaluating.');
+                return;
+            }
+            say('');
+
+            const metrics = calculateMetrics();
+            const isOptimal = (metrics.coverage >= 85 && metrics.leakage <= 18 && metrics.interference <= 12);
+            if (!isOptimal) failedChecks++;
+
+            modalCoverageVal.textContent = `${metrics.coverage}%`;
+            modalLeakageVal.textContent = `${metrics.leakage}%`;
+            modalInterferenceVal.textContent = `${metrics.interference}%`;
+            setVerdict(document.getElementById('modalCoverageVerdict'), metrics.coverage >= 85 ? 'ok' : 'bad', metrics.coverage >= 85 ? '✓ Meets the target' : '✗ Below 85%');
+            setVerdict(document.getElementById('modalLeakageVerdict'), metrics.leakage <= 18 ? 'ok' : 'bad', metrics.leakage <= 18 ? '✓ Within the limit' : '✗ Over 18%');
+            setVerdict(document.getElementById('modalInterferenceVerdict'), metrics.interference <= 12 ? 'ok' : 'bad', metrics.interference <= 12 ? '✓ Within the limit' : '✗ Over 12%');
+
+            if (isOptimal) {
+                modalBanner.className = 'p-4 rounded-xl flex items-center gap-4 bg-emerald-950 border border-emerald-800';
+                modalIcon.className = 'w-12 h-12 rounded-full bg-emerald-600/20 text-emerald-300 flex items-center justify-center text-2xl shrink-0';
+                modalIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+                modalTitle.textContent = '✓ Excellent Wi-Fi Network Design!';
+                modalTitle.className = 'text-xl font-bold text-emerald-200';
+                modalSubtitle.textContent = 'Your hardware placement achieves exceptional coverage while keeping RF noise low.';
+                if (window.SimHub) SimHub.markComplete('wifi-coverage-planner');
+            } else {
+                modalBanner.className = 'p-4 rounded-xl flex items-center gap-4 bg-amber-950 border border-amber-800';
+                modalIcon.className = 'w-12 h-12 rounded-full bg-amber-600/20 text-amber-300 flex items-center justify-center text-2xl shrink-0';
+                modalIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+                modalTitle.textContent = '✗ Sub-optimal Network Configuration';
+                modalTitle.className = 'text-xl font-bold text-amber-200';
+                modalSubtitle.textContent = 'Not every target is met yet: 85%+ indoor coverage, leakage 18% or less, interference 12% or less.';
+            }
+
+            document.getElementById('factsList').innerHTML = measuredFacts(metrics).map(f => `<li>${f}</li>`).join('');
+
+            const hints = document.getElementById('hintsBox');
+            if (!isOptimal && failedChecks >= 3) {
+                let html = `<p><b class="text-amber-200">Hint 1 of 3.</b> ${HINT_1}</p>`;
+                if (failedChecks >= 4) html += `<p><b class="text-amber-200">Hint 2 of 3.</b> ${HINT_2}</p>`;
+                if (failedChecks >= 5) html += `<div><b class="text-amber-200">Hint 3 of 3.</b> ${HINT_3}</div>`;
+                hints.innerHTML = html;
+                hints.classList.remove('hidden');
+            } else {
+                hints.classList.add('hidden');
+                hints.innerHTML = '';
+            }
+
+            // The placement rationale teaches why a good layout works: shown once every target is met
+            document.getElementById('rationaleBox').classList.toggle('hidden', !isOptimal);
+            if (isOptimal) {
+                document.getElementById('explanationCoverage').innerHTML = `<span class="text-emerald-200 font-bold">Outstanding Coverage (${metrics.coverage}%)!</span> Positioning hardware along the central hallway allows clean wireless coverage into Office 1, Office 2, Office 3, Executive Suite, and the Conference Room.`;
+                document.getElementById('explanationRFI').innerHTML = '<span class="text-emerald-200 font-bold">Low Interference Clean Spectrum!</span> Wireless nodes are safely placed away from microwave and 2-way radio RF hazard zones.';
+            }
+
+            modalOpener = document.activeElement;
+            resultsModal.classList.remove('hidden');
+            setTimeout(() => {
+                resultsModal.classList.remove('opacity-0');
+                modalTitle.focus();
+            }, 10);
+        }
+
+        function closeModal() {
+            resultsModal.classList.add('opacity-0');
+            setTimeout(() => {
+                resultsModal.classList.add('hidden');
+                if (modalOpener && modalOpener.focus) modalOpener.focus();
+            }, 300);
+        }
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !resultsModal.classList.contains('hidden')) closeModal(); });
+
+        function resetLayout() {
+            routerPos = null;
+            extenderPos = null;
+            activeDragNode = null;
+            failedChecks = 0;
+
+            document.getElementById('routerBadge').textContent = 'Ready';
+            document.getElementById('routerBadge').className = 'text-xs bg-blue-950 text-blue-100 px-2 py-0.5 rounded border border-blue-700/60';
+
+            document.getElementById('extenderBadge').textContent = 'Ready';
+            document.getElementById('extenderBadge').className = 'text-xs bg-purple-950 text-purple-100 px-2 py-0.5 rounded border border-purple-700/60';
+
+            say('');
+            refresh();
+        }
+
+        function toggleHeatmap() {
+            if (heatmapQuality === 'high') {
+                heatmapQuality = 'medium';
+                heatmapToggleText.textContent = 'Heatmap: Medium';
+            } else if (heatmapQuality === 'medium') {
+                heatmapQuality = 'off';
+                heatmapToggleText.textContent = 'Heatmap: Off';
+            } else {
+                heatmapQuality = 'high';
+                heatmapToggleText.textContent = 'Heatmap: High';
+            }
+            drawFloorPlan();
+        }
+
+        // Easier reading: on stays on, across pages and visits (the plan's labels change face too)
+        function initEasier() {
+            const b = document.getElementById('easierBtn'), root = document.documentElement;
+            const paint = () => { const on = root.classList.contains('easier'); b.setAttribute('aria-pressed', String(on)); b.textContent = 'Easier reading: ' + (on ? 'on' : 'off'); };
+            b.addEventListener('click', () => {
+                const on = !root.classList.contains('easier');
+                root.classList.toggle('easier', on);
+                try { localStorage.setItem('cwp-easier-reading', on ? '1' : '0'); } catch (e) { /* storage off */ }
+                paint();
+                drawFloorPlan();
+                syncNodeDOMPositions();
+            });
+            paint();
+        }
+
+        submitBtn.addEventListener('click', evaluatePlacement);
+        resetBtn.addEventListener('click', resetLayout);
+        toggleHeatmapBtn.addEventListener('click', toggleHeatmap);
+        modalCloseBtn.addEventListener('click', closeModal);
+        modalTryAgainBtn.addEventListener('click', closeModal);
+
+        window.onload = function() {
+            setupDragging();
+            initEasier();
+            refresh();
+            if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => drawFloorPlan());
+        };
+    </script>
+</body>
+</html>
